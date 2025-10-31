@@ -1,9 +1,14 @@
 /**
  * PredictionMarket contract for Massa blockchain
- * Uses EagleFi DEX for price feeds instead of oracles (due to lack of oracle support on Massa)
+ * Uses Dusa Spot Price for price feeds instead of oracles (due to lack of oracle support on Massa)
  */
 
-import { Context, generateEvent, Storage } from '@massalabs/massa-as-sdk';
+import {
+  Address,
+  Context,
+  generateEvent,
+  Storage,
+} from '@massalabs/massa-as-sdk';
 import {
   Args,
   boolToByte,
@@ -28,9 +33,15 @@ import { SafeMath256 } from './lib/safeMath';
 import { Round } from './structs/round';
 import { PersistentMap } from './lib/PersistentMap';
 import { BetInfo } from './structs/betInfo';
+import { IDusaPair } from './interfaces/IDusaPair';
+import { BinHelper } from './lib/dusaBinHelper';
 
 // Storage keys
 
+// Pool address taht will use to fetch token price
+const POOL_ADDRESS_KEY: string = 'pa';
+// Pool bin step
+const POOL_BIN_STEP_KEY: StaticArray<u8> = stringToBytes('pbs');
 // Treasury rate (e.g. 200 = 2%, 150 = 1.50%)
 const TREASURY_FEE_KEY: StaticArray<u8> = stringToBytes('tf');
 const TREASURY_AMOUNT_KEY: StaticArray<u8> = stringToBytes('ta');
@@ -72,6 +83,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const args = new Args(binaryArgs);
 
+  const poolAddress = args.nextString().expect('POOL_ADDRESS_ARG_MISSING');
   const treasuryFee = args.nextU32().expect('TREASURY_FEE_ARG_MISSING');
   const minBetAmount = args.nextU256().expect('MIN_BET_AMOUNT_ARG_MISSING');
   const tokenAddress = args.nextString().expect('TOKEN_ADDRESS_ARG_MISSING');
@@ -82,6 +94,17 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
     treasuryFee <= MAX_TREASURY_FEE,
     'TREASURY_FEE_CANNOT_EXCEED_10_PERCENT',
   );
+
+  // Fetch pool Bin Step from Dusa Pool address
+  const poolContract = new IDusaPair(new Address(poolAddress));
+
+  const feeParameters = poolContract.feeParameters();
+
+  const binStep = feeParameters.binStep;
+
+  // Store initial configuration in storage
+  Storage.set(POOL_ADDRESS_KEY, poolAddress);
+  Storage.set(POOL_BIN_STEP_KEY, u32ToBytes(binStep));
 
   Storage.set(TREASURY_FEE_KEY, u32ToBytes(treasuryFee));
   Storage.set(MIN_BET_AMOUNT_KEY, u256ToBytes(minBetAmount));
@@ -565,7 +588,16 @@ function _bettable(epoch: u256): bool {
  * @returns u256 - The current token price
  */
 function _getTokenPrice(): u256 {
-  return u256.One; // Placeholder implementation
+  const poolAddress = Storage.get(POOL_ADDRESS_KEY);
+
+  const poolContract = new IDusaPair(new Address(poolAddress));
+
+  const pairInfo = poolContract.getPairInformation();
+
+  return BinHelper.getPriceFromId(
+    pairInfo.activeId as u64,
+    bytesToU32(Storage.get(POOL_BIN_STEP_KEY)) as u64,
+  );
 }
 
 function _betUserInfoKey(epoch: u256, userAddress: string): StaticArray<u8> {
