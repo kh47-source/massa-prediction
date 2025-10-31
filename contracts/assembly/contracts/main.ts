@@ -20,7 +20,6 @@ import {
   bytesToU64,
   byteToBool,
   nativeTypeArrayToBytes,
-  serializableObjectsArrayToBytes,
   stringToBytes,
   u256ToBytes,
   u32ToBytes,
@@ -88,7 +87,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   const poolAddress = args.nextString().expect('POOL_ADDRESS_ARG_MISSING');
   const treasuryFee = args.nextU32().expect('TREASURY_FEE_ARG_MISSING');
   const minBetAmount = args.nextU256().expect('MIN_BET_AMOUNT_ARG_MISSING');
-  const tokenAddress = args.nextString().expect('TOKEN_ADDRESS_ARG_MISSING');
   const intervalSeconds = args.nextU64().expect('INTERVAL_SECONDS_ARG_MISSING');
   const bufferSeconds = args.nextU64().expect('BUFFER_SECONDS_ARG_MISSING');
 
@@ -110,7 +108,6 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   Storage.set(TREASURY_FEE_KEY, u32ToBytes(treasuryFee));
   Storage.set(MIN_BET_AMOUNT_KEY, u256ToBytes(minBetAmount));
-  Storage.set(TOKEN_ADDRESS_KEY, tokenAddress);
   Storage.set(INTERVALS_SECONDS_KEY, u64ToBytes(intervalSeconds));
   Storage.set(BUFFER_SECONDS_KEY, u64ToBytes(bufferSeconds));
 
