@@ -5,6 +5,7 @@ import {
   Mas,
   SmartContract,
   JsonRpcProvider,
+  parseMas,
 } from '@massalabs/massa-web3';
 import { getScByteCode } from './utils';
 
@@ -15,14 +16,26 @@ console.log('Deploying contract...');
 
 const byteCode = getScByteCode('build', 'main.wasm');
 
-const name = 'Massa';
-const constructorArgs = new Args().addString(name);
+// MAS-USDC Liquidity Pool Address (Dusa)
+const poolAddress = 'AS112Wdy9pM4fvLNLHQXyf7uam9waMPdG5ekr4vxCyQHPkrMMPPY';
+const treasuryFee = 10 * 100; // 10%
+const minBetAmount = parseMas('1');
+const intervalSeconds = 300; // 5 minutes
+const bufferSeconds = 60; // 1 minute
+
+const constructorArgs = new Args()
+  .addString(poolAddress)
+  .addU32(BigInt(treasuryFee))
+  .addU256(minBetAmount)
+  .addU64(BigInt(intervalSeconds))
+  .addU64(BigInt(bufferSeconds))
+  .serialize();
 
 const contract = await SmartContract.deploy(
   provider,
   byteCode,
   constructorArgs,
-  { coins: Mas.fromString('0.01') },
+  { coins: Mas.fromString('0.06') },
 );
 
 console.log('Contract deployed at:', contract.address);
