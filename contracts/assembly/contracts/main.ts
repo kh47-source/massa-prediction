@@ -7,10 +7,13 @@ import { Context, generateEvent, Storage } from '@massalabs/massa-as-sdk';
 import {
   Args,
   boolToByte,
+  bytesToNativeTypeArray,
   bytesToU256,
   bytesToU32,
   bytesToU64,
   byteToBool,
+  nativeTypeArrayToBytes,
+  serializableObjectsArrayToBytes,
   stringToBytes,
   u256ToBytes,
   u32ToBytes,
@@ -24,6 +27,7 @@ import { onlyOwner } from './lib/ownership';
 import { SafeMath256 } from './lib/safeMath';
 import { Round } from './structs/round';
 import { PersistentMap } from './lib/PersistentMap';
+import { BetInfo } from './structs/betInfo';
 
 // Storage keys
 
@@ -45,6 +49,10 @@ const IS_GENESIS_LOCKED_KEY: StaticArray<u8> = stringToBytes('igl');
 const IS_GENESIS_STARTED_KEY: StaticArray<u8> = stringToBytes('igs');
 // Persistent Map for rounds
 const roundsMap = new PersistentMap<u256, Round>('tr');
+// Prefix for UserRounds storage keys
+const USER_ROUNDS_PREFIX = 'ur_';
+// Prefix for BetInfo storage keys
+const BET_USER_INFO_PREFIX = 'bet_';
 
 // Position enum
 export enum Position {
@@ -193,6 +201,68 @@ export function executeRound(_: StaticArray<u8>): void {
 
   // Start round n
   _safeStartRound(currentEpoch);
+}
+
+/**
+ * @notice Bet bear position
+ * @param epoch: epoch
+ */
+export function betBear(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
+  const betAmount = args.nextU256().expect('BET_AMOUNT_ARG_MISSING');
+
+  const minBetAmount = bytesToU256(Storage.get(MIN_BET_AMOUNT_KEY));
+  const currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+
+  assert(epoch == currentEpoch, 'BET_IS_TOO_EARLY_OR_LATE');
+  assert(_bettable(epoch), 'ROUND_NOT_BETTABLE');
+  assert(
+    betAmount >= minBetAmount,
+    'BET_AMOUNT_MUST_BE_GREATER_THAN_MIN_BET_AMOUNT',
+  );
+
+  // Get the transferred coins on the TX
+  const transferredCoins = Context.transferredCoins();
+
+  assert(
+    u256.fromU64(transferredCoins) >= betAmount,
+    'TRANSFERRED_COINS_MUST_LARGER_THAN_BET_AMOUNT',
+  );
+
+  // CHECK: User should not have already bet in this round
+  const userAddress = Context.caller().toString();
+
+  const betInfoKey = _betUserInfoKey(epoch, userAddress);
+
+  assert(!Storage.has(betInfoKey), 'CAN_ONLY_BET_ONCE_PER_ROUND');
+
+  // Update round data
+  const round = roundsMap.getSome(epoch);
+
+  round.totalAmount = SafeMath256.add(round.totalAmount, betAmount);
+  round.bearAmount = SafeMath256.add(round.bearAmount, betAmount);
+
+  // Store the updated round back in the map
+  roundsMap.set(epoch, round);
+
+  // Update user BetInfo
+  const betInfo = new BetInfo(Position.Bear, betAmount, false);
+
+  Storage.set(betInfoKey, betInfo.serialize());
+
+  // Update userRounds mapping
+  const userRounds = _getUserRounds(userAddress);
+
+  userRounds.push(epoch);
+
+  _updateUserRounds(userAddress, userRounds);
+
+  // Emit Bet Event
+  generateEvent(
+    `BetBear: user=${userAddress}, epoch=${epoch.toString()}, amount=${betAmount.toString()}`,
+  );
 }
 
 //////////////////////////////////////////// INTERNAL FUNCTIONS////////////////////////////////////////////
@@ -434,4 +504,32 @@ function _bettable(epoch: u256): bool {
  */
 function _getTokenPrice(): u256 {
   return u256.One; // Placeholder implementation
+}
+
+function _betUserInfoKey(epoch: u256, userAddress: string): StaticArray<u8> {
+  return stringToBytes(
+    BET_USER_INFO_PREFIX + epoch.toString() + '_' + userAddress,
+  );
+}
+
+function _userRoundsKey(userAddress: string): StaticArray<u8> {
+  return stringToBytes(USER_ROUNDS_PREFIX + userAddress);
+}
+
+function _getUserRounds(userAddress: string): u256[] {
+  const userRoundsKey = _userRoundsKey(userAddress);
+
+  if (!Storage.has(userRoundsKey)) {
+    return new Array<u256>();
+  }
+
+  const data = Storage.get(userRoundsKey);
+
+  return bytesToNativeTypeArray<u256>(data);
+}
+
+function _updateUserRounds(userAddress: string, rounds: u256[]): void {
+  const userRoundsKey = _userRoundsKey(userAddress);
+
+  Storage.set(userRoundsKey, nativeTypeArrayToBytes<u256>(rounds));
 }
