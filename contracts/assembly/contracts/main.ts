@@ -265,6 +265,68 @@ export function betBear(binaryArgs: StaticArray<u8>): void {
   );
 }
 
+/**
+ * @notice Bet bull position
+ * @param epoch: epoch
+ */
+export function betBull(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
+  const betAmount = args.nextU256().expect('BET_AMOUNT_ARG_MISSING');
+
+  const minBetAmount = bytesToU256(Storage.get(MIN_BET_AMOUNT_KEY));
+  const currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+
+  assert(epoch == currentEpoch, 'BET_IS_TOO_EARLY_OR_LATE');
+  assert(_bettable(epoch), 'ROUND_NOT_BETTABLE');
+  assert(
+    betAmount >= minBetAmount,
+    'BET_AMOUNT_MUST_BE_GREATER_THAN_MIN_BET_AMOUNT',
+  );
+
+  // Get the transferred coins on the TX
+  const transferredCoins = Context.transferredCoins();
+
+  assert(
+    u256.fromU64(transferredCoins) >= betAmount,
+    'TRANSFERRED_COINS_MUST_LARGER_THAN_BET_AMOUNT',
+  );
+
+  // CHECK: User should not have already bet in this round
+  const userAddress = Context.caller().toString();
+
+  const betInfoKey = _betUserInfoKey(epoch, userAddress);
+
+  assert(!Storage.has(betInfoKey), 'CAN_ONLY_BET_ONCE_PER_ROUND');
+
+  // Update round
+  const round = roundsMap.getSome(epoch);
+
+  round.totalAmount = SafeMath256.add(round.totalAmount, betAmount);
+  round.bullAmount = SafeMath256.add(round.bullAmount, betAmount);
+
+  // Store the updated round back in the map
+  roundsMap.set(epoch, round);
+
+  // Update user BetInfo
+  const betInfo = new BetInfo(Position.Bull, betAmount, false);
+
+  Storage.set(betInfoKey, betInfo.serialize());
+
+  // Update userRounds mapping
+  const userRounds = _getUserRounds(userAddress);
+
+  userRounds.push(epoch);
+
+  _updateUserRounds(userAddress, userRounds);
+
+  // Emit Bet Event
+  generateEvent(
+    `BetBull: user=${userAddress}, epoch=${epoch.toString()}, amount=${betAmount.toString()}`,
+  );
+}
+
 //////////////////////////////////////////// INTERNAL FUNCTIONS////////////////////////////////////////////
 
 function _startRound(epoch: u256): void {
