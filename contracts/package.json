@@ -14,7 +14,8 @@
         "lint": "eslint .",
         "lint:fix": "eslint . --fix",
         "fmt:check": "npm run prettier && npm run lint",
-        "fmt": "npm run prettier:fix && npm run lint:fix"
+        "fmt": "npm run prettier:fix && npm run lint:fix",
+        "events": "tsx src/events.ts"
     },
     "keywords": [],
     "author": "",
