@@ -5,9 +5,11 @@
 
 import {
   Address,
+  balance,
   Context,
   generateEvent,
   Storage,
+  transferCoins,
 } from '@massalabs/massa-as-sdk';
 import {
   Args,
@@ -351,6 +353,71 @@ export function betBull(binaryArgs: StaticArray<u8>): void {
 }
 
 /**
+ * @notice Claim reward for an array of epochs
+ * @param epochs: array of epochs
+ */
+export function claim(binaryArgs: StaticArray<u8>): void {
+  const args = new Args(binaryArgs);
+
+  const epochs = args.nextFixedSizeArray<u256>().expect('EPOCHS_ARG_MISSING');
+
+  let reward = u256.Zero; // Initializes reward
+
+  const userAddress = Context.caller().toString();
+
+  for (let i = 0; i < epochs.length; i++) {
+    const epoch = epochs[i];
+
+    const round = roundsMap.getSome(epoch);
+
+    assert(round.startTimestamp != 0, 'ROUND_HAS_NOT_STARTED');
+    assert(Context.timestamp() > round.closeTimestamp, 'ROUND_HAS_NOT_ENDED');
+
+    const isClaimable = _claimable(epoch, userAddress);
+
+    assert(isClaimable, 'NOT_ELIGIBLE_FOR_CLAIM');
+
+    // Get User BetInfo
+    const betInfoKey = _betUserInfoKey(epoch, userAddress);
+
+    const betInfo = new Args(Storage.get(betInfoKey))
+      .nextSerializable<BetInfo>()
+      .expect('INVALID_BET_INFO');
+
+    // addedReward = betInfo.amount * round.rewardAmount / round.rewardBaseCalAmount;
+    let addedReward = SafeMath256.div(
+      SafeMath256.mul(betInfo.amount, round.rewardAmount),
+      round.rewardBaseCalAmount,
+    );
+
+    // Update Bet Info as claimed
+    betInfo.claimed = true;
+    Storage.set(betInfoKey, betInfo.serialize());
+
+    // Update total reward
+    reward = SafeMath256.add(reward, addedReward);
+
+    // Emit Claim Event
+    generateEvent(
+      `Claim: user=${userAddress}, epoch=${epoch.toString()}, amount=${addedReward.toString()}`,
+    );
+  }
+
+  if (reward > u256.Zero) {
+    // Check the contract has enough balance to pay the reward
+    const contractBalance = balance();
+
+    assert(
+      contractBalance >= reward.toU64(),
+      'CONTRACT_HAS_NOT_ENOUGH_BALANCE_TO_CLAIM_REWARD',
+    );
+
+    // Transfer the reward to the user
+    transferCoins(new Address(userAddress), reward.toU64());
+  }
+}
+
+/**
  * @notice Get If User hash claimable bet for specific round
  * @param epoch: epoch
  * @param user: user address
@@ -362,30 +429,7 @@ export function claimable(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
   const userAddress = args.nextString().expect('USER_ADDRESS_ARG_MISSING');
 
-  const betInfoKey = _betUserInfoKey(epoch, userAddress);
-
-  if (!Storage.has(betInfoKey)) {
-    return boolToByte(false);
-  }
-
-  const betInfo = new Args(Storage.get(betInfoKey))
-    .nextSerializable<BetInfo>()
-    .expect('INVALID_BET_INFO');
-
-  const round = roundsMap.getSome(epoch);
-
-  // House Win round.
-  if (round.lockPrice == round.closePrice) {
-    return boolToByte(false);
-  }
-
-  const isClaimable =
-    betInfo.amount != u256.Zero &&
-    !betInfo.claimed &&
-    ((round.closePrice > round.lockPrice &&
-      betInfo.position == Position.Bull) ||
-      (round.closePrice < round.lockPrice &&
-        betInfo.position == Position.Bear));
+  const isClaimable = _claimable(epoch, userAddress);
 
   return boolToByte(isClaimable);
 }
@@ -621,6 +665,41 @@ function _bettable(epoch: u256): bool {
     currentTimestamp > round.startTimestamp &&
     currentTimestamp < round.lockTimestamp
   );
+}
+
+/**
+ * @notice Internal function to check if user can claim reward for specific round
+ * @param epoch: epoch
+ * @param userAddress: user address
+ * @return bool - true if user can claim, false otherwise
+ */
+function _claimable(epoch: u256, userAddress: string): bool {
+  const betInfoKey = _betUserInfoKey(epoch, userAddress);
+
+  if (!Storage.has(betInfoKey)) {
+    return false;
+  }
+
+  const betInfo = new Args(Storage.get(betInfoKey))
+    .nextSerializable<BetInfo>()
+    .expect('INVALID_BET_INFO');
+
+  const round = roundsMap.getSome(epoch);
+
+  // House Win round.
+  if (round.lockPrice == round.closePrice) {
+    return false;
+  }
+
+  const isClaimable =
+    betInfo.amount != u256.Zero &&
+    !betInfo.claimed &&
+    ((round.closePrice > round.lockPrice &&
+      betInfo.position == Position.Bull) ||
+      (round.closePrice < round.lockPrice &&
+        betInfo.position == Position.Bear));
+
+  return isClaimable;
 }
 
 /**
