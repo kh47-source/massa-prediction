@@ -350,6 +350,46 @@ export function betBull(binaryArgs: StaticArray<u8>): void {
   );
 }
 
+/**
+ * @notice Get If User hash claimable bet for specific round
+ * @param epoch: epoch
+ * @param user: user address
+ * @return StaticArray<u8> - bool serialized as StaticArray<u8>
+ */
+export function claimable(binaryArgs: StaticArray<u8>): StaticArray<u8> {
+  const args = new Args(binaryArgs);
+
+  const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
+  const userAddress = args.nextString().expect('USER_ADDRESS_ARG_MISSING');
+
+  const betInfoKey = _betUserInfoKey(epoch, userAddress);
+
+  if (!Storage.has(betInfoKey)) {
+    return boolToByte(false);
+  }
+
+  const betInfo = new Args(Storage.get(betInfoKey))
+    .nextSerializable<BetInfo>()
+    .expect('INVALID_BET_INFO');
+
+  const round = roundsMap.getSome(epoch);
+
+  // House Win round.
+  if (round.lockPrice == round.closePrice) {
+    return boolToByte(false);
+  }
+
+  const isClaimable =
+    betInfo.amount != u256.Zero &&
+    !betInfo.claimed &&
+    ((round.closePrice > round.lockPrice &&
+      betInfo.position == Position.Bull) ||
+      (round.closePrice < round.lockPrice &&
+        betInfo.position == Position.Bear));
+
+  return boolToByte(isClaimable);
+}
+
 //////////////////////////////////////////// INTERNAL FUNCTIONS////////////////////////////////////////////
 
 function _startRound(epoch: u256): void {
