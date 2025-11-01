@@ -8,6 +8,7 @@ import {
   getCurrentEpoch,
   getIsGenesisLocked,
   getIsGenesisStarted,
+  getRoundDetails,
 } from "../lib/massa";
 import { toast } from "react-toastify";
 
@@ -49,6 +50,14 @@ export default function Admin() {
     setIsCurrentEpochLoading(true);
     const currentEpoch = await getCurrentEpoch(connectedAccount!);
     setCurrentEpoch(currentEpoch);
+
+    const roundDetails = await getRoundDetails(
+      BigInt(currentEpoch),
+      connectedAccount!
+    );
+
+    console.log("Fetched round details:", roundDetails);
+
     setIsCurrentEpochLoading(false);
   };
 

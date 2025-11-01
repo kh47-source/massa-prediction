@@ -16,7 +16,9 @@ import {
   CURRENT_EPOCH_KEY,
   IS_GENESIS_LOCKED_KEY,
   IS_GENESIS_STARTED_KEY,
+  ROUNDS_MAP_PREFIX,
 } from "./const";
+import { Round } from "./types";
 
 export async function getIsGenesisStarted(
   provider: Provider
@@ -183,4 +185,20 @@ export async function getCurrentEpoch(provider: Provider): Promise<number> {
   }
 
   return Number(new Args(values[0]).nextU64());
+}
+
+export async function getRoundDetails(round: bigint, provider: Provider) {
+  const roundKey = ROUNDS_MAP_PREFIX + round.toString();
+
+  const values = await provider.readStorage(
+    CONTRACT_ADDRESS,
+    [roundKey],
+    false
+  );
+
+  if (!values || values.length === 0 || values[0] === null) {
+    throw new Error("Failed to fetch round details from storage");
+  }
+
+  return new Args(values[0]).nextSerializable<Round>(Round);
 }
