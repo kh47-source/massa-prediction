@@ -2,7 +2,11 @@ import { useEffect, useState } from "react";
 import { ADMIN_ADDRESS } from "../lib/const";
 import { shortenAddress } from "../lib/utils";
 import { useAccountStore } from "@massalabs/react-ui-kit";
-import { getIsGenesisLocked, getIsGenesisStarted } from "../lib/massa";
+import {
+  genesisStartRound,
+  getIsGenesisLocked,
+  getIsGenesisStarted,
+} from "../lib/massa";
 import { toast } from "react-toastify";
 
 export default function Admin() {
@@ -10,6 +14,7 @@ export default function Admin() {
   const [updating, setUpdating] = useState<null | "started" | "lock">(null);
   const [genesisStarted, setGenesisStarted] = useState(false);
   const [genesisLocked, setGenesisLocked] = useState(false);
+  const [isGenesisStartedLoading, setIsGenesisStartedLoading] = useState(false);
   const { connectedAccount } = useAccountStore();
 
   const fetchGenesisStatus = async () => {
@@ -36,22 +41,24 @@ export default function Admin() {
     fetchGenesisStatus();
   }, [connectedAccount]);
 
-  const toggleStarted = async () => {
-    setUpdating("started");
-    await new Promise((r) => setTimeout(r, 300));
-    const next = !genesisStarted;
-    localStorage.setItem("pm_genesis_started", String(next));
-    setGenesisStarted(next);
-    setUpdating(null);
-  };
+  const handleStartGenesisRound = async () => {
+    if (!connectedAccount) {
+      return;
+    }
 
-  const toggleLock = async () => {
-    setUpdating("lock");
-    await new Promise((r) => setTimeout(r, 300));
-    const next = !genesisLocked;
-    localStorage.setItem("pm_genesis_lock", String(next));
-    setGenesisLocked(next);
-    setUpdating(null);
+    setIsGenesisStartedLoading(true);
+
+    try {
+      const result = await genesisStartRound(connectedAccount);
+
+      if (result.success) {
+        await fetchGenesisStatus();
+      }
+    } catch (error) {
+      console.error("Error starting genesis round:", error);
+    } finally {
+      setIsGenesisStartedLoading(false);
+    }
   };
 
   return (
@@ -104,19 +111,18 @@ export default function Admin() {
 
             <div className="mt-6 flex flex-col sm:flex-row gap-3">
               <button
-                onClick={toggleStarted}
-                disabled={loading || updating !== null}
+                onClick={handleStartGenesisRound}
+                disabled={isGenesisStartedLoading || genesisStarted}
                 className="inline-flex items-center justify-center rounded-md bg-red-600 text-white px-4 py-2 text-sm font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {updating === "started"
-                  ? "Updating…"
+                {isGenesisStartedLoading
+                  ? "Starting…"
                   : genesisStarted
-                  ? "Unset genesisStarted"
-                  : "Set genesisStarted"}
+                  ? "Genesis Round Already Started"
+                  : "Start Genesis Round"}
               </button>
 
               <button
-                onClick={toggleLock}
                 disabled={loading || updating !== null}
                 className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white px-4 py-2 text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
               >
