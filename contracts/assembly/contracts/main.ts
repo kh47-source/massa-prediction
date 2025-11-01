@@ -148,7 +148,7 @@ export function genesisStartRound(): void {
   Storage.set(CURRENT_EPOCH_KEY, u256ToBytes(newCurrentEpoch));
 
   // Start the first round
-  // _startRound(newCurrentEpoch)
+  _startRound(newCurrentEpoch)
 
   // Update genesis started flag
   Storage.set(IS_GENESIS_STARTED_KEY, boolToByte(true));
