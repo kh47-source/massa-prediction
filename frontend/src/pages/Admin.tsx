@@ -52,9 +52,13 @@ export default function Admin() {
     setIsCurrentEpochLoading(false);
   };
 
+  const refreshStatus = async () => {
+    await fetchGenesisStatus();
+    await fetchCurrentEpoch();
+  };
+
   useEffect(() => {
-    fetchCurrentEpoch();
-    fetchGenesisStatus();
+    refreshStatus();
   }, [connectedAccount]);
 
   const handleStartGenesisRound = async () => {
@@ -68,7 +72,7 @@ export default function Admin() {
       const result = await genesisStartRound(connectedAccount);
 
       if (result.success) {
-        await fetchGenesisStatus();
+        await refreshStatus();
       }
     } catch (error) {
       console.error("Error starting genesis round:", error);
@@ -88,7 +92,7 @@ export default function Admin() {
       const result = await genesisLockRound(connectedAccount);
 
       if (result.success) {
-        await fetchGenesisStatus();
+        await refreshStatus();
       }
     } catch (error) {
       console.error("Error locking genesis round:", error);

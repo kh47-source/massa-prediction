@@ -57,7 +57,13 @@ export async function genesisStartRound(
   try {
     const contract = new SmartContract(provider, CONTRACT_ADDRESS);
 
-    const genesisStartOp = await contract.call("genesisStartRound", new Args());
+    const genesisStartOp = await contract.call(
+      "genesisStartRound",
+      new Args(),
+      {
+        coins: parseMas("0.03"),
+      }
+    );
 
     console.log("Operation ID:", genesisStartOp.id);
 
@@ -116,7 +122,9 @@ export async function genesisLockRound(
   try {
     const contract = new SmartContract(provider, CONTRACT_ADDRESS);
 
-    const genesisLockOp = await contract.call("genesisLockRound", new Args());
+    const genesisLockOp = await contract.call("genesisLockRound", new Args(), {
+      coins: parseMas("0.03"),
+    });
 
     console.log("Operation ID:", genesisLockOp.id);
 
