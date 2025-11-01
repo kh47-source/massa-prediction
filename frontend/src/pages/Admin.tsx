@@ -26,6 +26,7 @@ export default function Admin() {
     null
   );
   const [prevRoundDetails, setPrevRoundDetails] = useState<Round | null>(null);
+  const [prev2RoundDetails, setPrev2RoundDetails] = useState<Round | null>(null);
   const { connectedAccount } = useAccountStore();
 
   const fetchGenesisStatus = async () => {
@@ -81,6 +82,23 @@ export default function Admin() {
       }
     } else {
       setPrevRoundDetails(null);
+    }
+
+    // Fetch current - 2 round details if available
+    if (currentEpoch > 2) {
+      try {
+        const prev2Round = await getRoundDetails(
+          BigInt(currentEpoch - 2),
+          connectedAccount!
+        );
+        console.log("Fetched current - 2 round details:", prev2Round);
+        setPrev2RoundDetails(prev2Round);
+      } catch (error) {
+        console.error("Error fetching current - 2 round:", error);
+        setPrev2RoundDetails(null);
+      }
+    } else {
+      setPrev2RoundDetails(null);
     }
 
     setIsCurrentEpochLoading(false);
@@ -732,6 +750,296 @@ export default function Admin() {
                         <div className="text-lg font-bold text-amber-700">
                           {(
                             Number(prevRoundDetails.rewardBaseCalAmount) / 1e9
+                          ).toFixed(2)}{" "}
+                          MAS
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Current - 2 Round Details Section */}
+        {prev2RoundDetails && !isCurrentEpochLoading && (
+          <div className="mt-8 px-4">
+            <div className="max-w-6xl mx-auto">
+              <div className="brut-card bg-gradient-to-br from-gray-50 to-slate-50 p-8">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-ink-950">
+                      🏁 Round #{prev2RoundDetails.epoch.toString()}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                      <span className="text-sm font-semibold text-gray-700">
+                        EXPIRED
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                  {/* Total Pool */}
+                  <div className="bg-white border-3 border-ink-950 rounded-2xl p-5 shadow-brut hover:translate-y-[-4px] transition-transform">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-600">
+                        💰 Total Pool
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-ink-950">
+                      {(Number(prev2RoundDetails.totalAmount) / 1e9).toFixed(2)}{" "}
+                      <span className="text-lg text-gray-600">MAS</span>
+                    </div>
+                  </div>
+
+                  {/* Bull Amount */}
+                  <div className="bg-gradient-to-br from-green-100 to-green-50 border-3 border-ink-950 rounded-2xl p-5 shadow-brut hover:translate-y-[-4px] transition-transform">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        🐂 Bull Position
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-green-700">
+                      {(Number(prev2RoundDetails.bullAmount) / 1e9).toFixed(2)}{" "}
+                      <span className="text-lg">MAS</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {prev2RoundDetails.totalAmount > 0n
+                        ? (
+                            (Number(prev2RoundDetails.bullAmount) /
+                              Number(prev2RoundDetails.totalAmount)) *
+                            100
+                          ).toFixed(1)
+                        : "0.0"}
+                      % of pool
+                    </div>
+                  </div>
+
+                  {/* Bear Amount */}
+                  <div className="bg-gradient-to-br from-red-100 to-red-50 border-3 border-ink-950 rounded-2xl p-5 shadow-brut hover:translate-y-[-4px] transition-transform">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">
+                        🐻 Bear Position
+                      </span>
+                    </div>
+                    <div className="text-2xl font-bold text-red-700">
+                      {(Number(prev2RoundDetails.bearAmount) / 1e9).toFixed(2)}{" "}
+                      <span className="text-lg">MAS</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {prev2RoundDetails.totalAmount > 0n
+                        ? (
+                            (Number(prev2RoundDetails.bearAmount) /
+                              Number(prev2RoundDetails.totalAmount)) *
+                            100
+                          ).toFixed(1)
+                        : "0.0"}
+                      % of pool
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual Pool Distribution */}
+                <div className="mb-6">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-gray-700">
+                      Pool Distribution
+                    </span>
+                  </div>
+                  <div className="h-8 flex rounded-xl overflow-hidden border-3 border-ink-950 shadow-brut">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-green-400 flex items-center justify-center text-white font-bold text-sm transition-all duration-500"
+                      style={{
+                        width:
+                          prev2RoundDetails.totalAmount > 0n
+                            ? `${
+                                (Number(prev2RoundDetails.bullAmount) /
+                                  Number(prev2RoundDetails.totalAmount)) *
+                                100
+                              }%`
+                            : "50%",
+                      }}
+                    >
+                      {prev2RoundDetails.totalAmount > 0n &&
+                        Number(prev2RoundDetails.bullAmount) > 0 && (
+                          <span>
+                            🐂{" "}
+                            {(
+                              (Number(prev2RoundDetails.bullAmount) /
+                                Number(prev2RoundDetails.totalAmount)) *
+                              100
+                            ).toFixed(1)}
+                            %
+                          </span>
+                        )}
+                    </div>
+                    <div
+                      className="bg-gradient-to-r from-red-500 to-red-400 flex items-center justify-center text-white font-bold text-sm transition-all duration-500"
+                      style={{
+                        width:
+                          prev2RoundDetails.totalAmount > 0n
+                            ? `${
+                                (Number(prev2RoundDetails.bearAmount) /
+                                  Number(prev2RoundDetails.totalAmount)) *
+                                100
+                              }%`
+                            : "50%",
+                      }}
+                    >
+                      {prev2RoundDetails.totalAmount > 0n &&
+                        Number(prev2RoundDetails.bearAmount) > 0 && (
+                          <span>
+                            🐻{" "}
+                            {(
+                              (Number(prev2RoundDetails.bearAmount) /
+                                Number(prev2RoundDetails.totalAmount)) *
+                              100
+                            ).toFixed(1)}
+                            %
+                          </span>
+                        )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Price Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-white border-3 border-ink-950 rounded-2xl p-5">
+                    <div className="text-sm font-medium text-gray-600 mb-1">
+                      🔒 Lock Price
+                    </div>
+                    <div className="text-xl font-bold text-ink-950">
+                      {prev2RoundDetails.lockPrice > 0n
+                        ? `$${(Number(prev2RoundDetails.lockPrice) / 1e8).toFixed(5)}`
+                        : "Not Set"}
+                    </div>
+                  </div>
+
+                  <div className="bg-white border-3 border-ink-950 rounded-2xl p-5">
+                    <div className="text-sm font-medium text-gray-600 mb-1">
+                      ✅ Close Price
+                    </div>
+                    <div className="text-xl font-bold text-ink-950">
+                      {prev2RoundDetails.closePrice > 0n
+                        ? `$${(Number(prev2RoundDetails.closePrice) / 1e8).toFixed(5)}`
+                        : "Not Set"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Winner Display */}
+                {prev2RoundDetails.closePrice > 0n &&
+                  prev2RoundDetails.lockPrice > 0n && (
+                    <div className="mb-6 bg-white border-3 border-ink-950 rounded-2xl p-5">
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-gray-600 mb-2">
+                          🏆 Winner
+                        </div>
+                        <div
+                          className={`text-3xl font-bold ${
+                            prev2RoundDetails.closePrice >
+                            prev2RoundDetails.lockPrice
+                              ? "text-green-600"
+                              : prev2RoundDetails.closePrice <
+                                prev2RoundDetails.lockPrice
+                              ? "text-red-600"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          {prev2RoundDetails.closePrice >
+                          prev2RoundDetails.lockPrice
+                            ? "🐂 BULL"
+                            : prev2RoundDetails.closePrice <
+                              prev2RoundDetails.lockPrice
+                            ? "🐻 BEAR"
+                            : "🤝 DRAW"}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-2">
+                          Price moved{" "}
+                          {prev2RoundDetails.closePrice >
+                          prev2RoundDetails.lockPrice
+                            ? "up"
+                            : prev2RoundDetails.closePrice <
+                              prev2RoundDetails.lockPrice
+                            ? "down"
+                            : "stayed the same"}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                {/* Timestamps */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                    <div className="text-xs font-medium text-blue-700 mb-1">
+                      ⏰ Start Time
+                    </div>
+                    <div className="text-sm font-semibold text-ink-950">
+                      {prev2RoundDetails.startTimestamp > 0n
+                        ? new Date(
+                            Number(prev2RoundDetails.startTimestamp)
+                          ).toLocaleString()
+                        : "Not Started"}
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-4">
+                    <div className="text-xs font-medium text-yellow-700 mb-1">
+                      🔐 Lock Time
+                    </div>
+                    <div className="text-sm font-semibold text-ink-950">
+                      {prev2RoundDetails.lockTimestamp > 0n
+                        ? new Date(
+                            Number(prev2RoundDetails.lockTimestamp)
+                          ).toLocaleString()
+                        : "Not Locked"}
+                    </div>
+                  </div>
+
+                  <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                    <div className="text-xs font-medium text-purple-700 mb-1">
+                      🏁 Close Time
+                    </div>
+                    <div className="text-sm font-semibold text-ink-950">
+                      {prev2RoundDetails.closeTimestamp > 0n
+                        ? new Date(
+                            Number(prev2RoundDetails.closeTimestamp)
+                          ).toLocaleString()
+                        : "Not Closed"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reward Information */}
+                {(prev2RoundDetails.rewardAmount > 0n ||
+                  prev2RoundDetails.rewardBaseCalAmount > 0n) && (
+                  <div className="mt-6 bg-gradient-to-r from-yellow-100 to-amber-100 border-3 border-ink-950 rounded-2xl p-5">
+                    <div className="text-sm font-medium text-gray-700 mb-3">
+                      🏆 Reward Information
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <div className="text-xs text-gray-600">
+                          Reward Amount
+                        </div>
+                        <div className="text-lg font-bold text-amber-700">
+                          {(Number(prev2RoundDetails.rewardAmount) / 1e9).toFixed(
+                            2
+                          )}{" "}
+                          MAS
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-gray-600">
+                          Base Calculation Amount
+                        </div>
+                        <div className="text-lg font-bold text-amber-700">
+                          {(
+                            Number(prev2RoundDetails.rewardBaseCalAmount) / 1e9
                           ).toFixed(2)}{" "}
                           MAS
                         </div>
