@@ -6,3 +6,4 @@ export const IS_GENESIS_STARTED_KEY = "igs";
 export const IS_GENESIS_LOCKED_KEY = "igl";
 export const CURRENT_EPOCH_KEY = "ce";
 export const ROUNDS_MAP_PREFIX = "tr::";
+export const PRICE_FORMAT_DECIMALS = 35;

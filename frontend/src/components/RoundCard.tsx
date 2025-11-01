@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Round, Position } from "../lib/types";
-import { calculatePayout, getTimeRemaining } from "../lib/utils";
+import { calculatePayout, formatPrice, getTimeRemaining } from "../lib/utils";
+import { formatUnits } from "@massalabs/massa-web3";
+import { PRICE_FORMAT_DECIMALS } from "../lib/const";
 
 export enum RoundStatus {
   LIVE = "LIVE",
@@ -133,9 +135,11 @@ export default function RoundCard({
 
       {/* Result Display for Calculating/Expired Rounds */}
       {(isCalculating || isExpired) && hasResult && (
-        <div className={`mb-4 p-4 bg-white rounded-xl border-3 ${
-          isCalculating ? "border-yellow-300" : "border-gray-200"
-        }`}>
+        <div
+          className={`mb-4 p-4 bg-white rounded-xl border-3 ${
+            isCalculating ? "border-yellow-300" : "border-gray-200"
+          }`}
+        >
           <div className="text-center mb-2">
             <div className="text-xs text-gray-600 mb-1">
               {isCalculating ? "Detected Winner" : "Winner"}
@@ -159,15 +163,11 @@ export default function RoundCard({
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div>
               <div className="text-gray-600">Lock Price</div>
-              <div className="font-bold">
-                ${Number(round.lockPrice).toFixed(1)}
-              </div>
+              <div className="font-bold">${formatPrice(round.lockPrice)}</div>
             </div>
             <div>
               <div className="text-gray-600">Close Price</div>
-              <div className="font-bold">
-                ${Number(round.closePrice).toFixed(1)}
-              </div>
+              <div className="font-bold">${formatPrice(round.closePrice)}</div>
             </div>
           </div>
         </div>

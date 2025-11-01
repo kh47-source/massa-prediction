@@ -1,5 +1,6 @@
-import { formatMas } from "@massalabs/massa-web3";
+import { formatMas, formatUnits } from "@massalabs/massa-web3";
 import { Position, Round } from "./types";
+import { PRICE_FORMAT_DECIMALS } from "./const";
 
 export const shortenAddress = (address: string, chars = 10): string => {
   if (!address) return "";
@@ -28,8 +29,6 @@ export const calculatePayout = (position: Position, round: Round): string => {
   const bullAmount = Number(formatMas(round.bullAmount));
   const bearAmount = Number(formatMas(round.bearAmount));
 
-    
-
   if (totalAmount === 0) return "0.00";
 
   const payout =
@@ -39,3 +38,7 @@ export const calculatePayout = (position: Position, round: Round): string => {
 
   return payout.toFixed(2);
 };
+
+export function formatPrice(price: bigint, decFix = 3): string {
+  return (1 / Number(formatUnits(price, PRICE_FORMAT_DECIMALS))).toFixed(decFix);
+}

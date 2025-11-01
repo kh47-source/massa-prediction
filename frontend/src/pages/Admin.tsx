@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ADMIN_ADDRESS } from "../lib/const";
-import { shortenAddress } from "../lib/utils";
+import { formatPrice, shortenAddress } from "../lib/utils";
 import { useAccountStore } from "@massalabs/react-ui-kit";
 import {
   genesisLockRound,
@@ -26,7 +26,9 @@ export default function Admin() {
     null
   );
   const [prevRoundDetails, setPrevRoundDetails] = useState<Round | null>(null);
-  const [prev2RoundDetails, setPrev2RoundDetails] = useState<Round | null>(null);
+  const [prev2RoundDetails, setPrev2RoundDetails] = useState<Round | null>(
+    null
+  );
   const { connectedAccount } = useAccountStore();
 
   const fetchGenesisStatus = async () => {
@@ -374,7 +376,7 @@ export default function Admin() {
                     </div>
                     <div className="text-xl font-bold text-ink-950">
                       {currentRoundDetails.lockPrice > 0n
-                        ? `$${(Number(currentRoundDetails.lockPrice) / 1e8).toFixed(5)}`
+                        ? `$${formatPrice(currentRoundDetails.lockPrice, 5)}`
                         : "Not Set"}
                     </div>
                   </div>
@@ -385,7 +387,7 @@ export default function Admin() {
                     </div>
                     <div className="text-xl font-bold text-ink-950">
                       {currentRoundDetails.closePrice > 0n
-                        ? `$${(Number(currentRoundDetails.closePrice) / 1e8).toFixed(5)}`
+                        ? `$${formatPrice(currentRoundDetails.closePrice, 5)}`
                         : "Not Set"}
                     </div>
                   </div>
@@ -624,7 +626,7 @@ export default function Admin() {
                     </div>
                     <div className="text-xl font-bold text-ink-950">
                       {prevRoundDetails.lockPrice > 0n
-                        ? `$${(Number(prevRoundDetails.lockPrice) / 1e8).toFixed(5)}`
+                        ? `$${formatPrice(prevRoundDetails.lockPrice, 5)}`
                         : "Not Set"}
                     </div>
                   </div>
@@ -635,7 +637,7 @@ export default function Admin() {
                     </div>
                     <div className="text-xl font-bold text-ink-950">
                       {prevRoundDetails.closePrice > 0n
-                        ? `$${(Number(prevRoundDetails.closePrice) / 1e8).toFixed(5)}`
+                        ? `$${formatPrice(prevRoundDetails.closePrice, 5)}`
                         : "Not Set"}
                     </div>
                   </div>
@@ -737,9 +739,9 @@ export default function Admin() {
                           Reward Amount
                         </div>
                         <div className="text-lg font-bold text-amber-700">
-                          {(Number(prevRoundDetails.rewardAmount) / 1e9).toFixed(
-                            2
-                          )}{" "}
+                          {(
+                            Number(prevRoundDetails.rewardAmount) / 1e9
+                          ).toFixed(2)}{" "}
                           MAS
                         </div>
                       </div>
@@ -914,7 +916,7 @@ export default function Admin() {
                     </div>
                     <div className="text-xl font-bold text-ink-950">
                       {prev2RoundDetails.lockPrice > 0n
-                        ? `$${(Number(prev2RoundDetails.lockPrice) / 1e8).toFixed(5)}`
+                        ? `$${formatPrice(prev2RoundDetails.lockPrice, 5)}`
                         : "Not Set"}
                     </div>
                   </div>
@@ -925,7 +927,7 @@ export default function Admin() {
                     </div>
                     <div className="text-xl font-bold text-ink-950">
                       {prev2RoundDetails.closePrice > 0n
-                        ? `$${(Number(prev2RoundDetails.closePrice) / 1e8).toFixed(5)}`
+                        ? `$${formatPrice(prev2RoundDetails.closePrice, 5)}`
                         : "Not Set"}
                     </div>
                   </div>
@@ -1027,9 +1029,9 @@ export default function Admin() {
                           Reward Amount
                         </div>
                         <div className="text-lg font-bold text-amber-700">
-                          {(Number(prev2RoundDetails.rewardAmount) / 1e9).toFixed(
-                            2
-                          )}{" "}
+                          {(
+                            Number(prev2RoundDetails.rewardAmount) / 1e9
+                          ).toFixed(2)}{" "}
                           MAS
                         </div>
                       </div>
