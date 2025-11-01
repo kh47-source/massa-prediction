@@ -53,7 +53,7 @@ const useAccountSync = () => {
 
   const initializedRef = useRef(false);
 
-  console.log("useAccountSync initializedRef:", initializedRef.current);
+  // console.log("useAccountSync initializedRef:", initializedRef.current);
 
   useEffect(() => {
     if (!initializedRef.current) {

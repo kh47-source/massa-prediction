@@ -75,19 +75,19 @@
 }
 
 /* react tostify customization  */
-:root {
+/* :root {
   --toastify-color-info: #f6c955;
   --toastify-color-success: #166534;
   --toastify-color-warning: #ffa500;
   --toastify-color-error: #b91c1c;
   --toastify-toast-width: 424px;
   --toastify-font-family: "DM Sans", sans-serif;
-}
+} */
 
 .Toastify__toast-container {
   max-width: 90vw !important;
 }
-
+/* 
 .Toastify__toast {
   border: 2px solid #1e1e1e !important;
   border-bottom-width: 4px !important;
@@ -138,4 +138,4 @@
 
 .Toastify__progress-bar {
   background: rgba(30, 30, 30, 0.2) !important;
-}
+} */

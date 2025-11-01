@@ -34,7 +34,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-white text-gray-600">
-      <header className="bg-white border-b-2 border-red-100 sticky top-0 z-50 shadow-sm">
+      <header className="bg-white border-b-2 border-red-200 sticky top-0 z-50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
