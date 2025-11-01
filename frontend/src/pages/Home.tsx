@@ -47,7 +47,7 @@ function Home() {
 
       const roundsData: RoundCardData[] = [];
 
-      // Fetch historical rounds (EXPIRED) - fetch in parallel
+      // Fetch historical rounds (EXPIRED/CALCULATING) - fetch in parallel
       const historicalPromises = [];
 
       for (let i = historicalRoundsCount; i >= 1; i--) {
@@ -55,11 +55,19 @@ function Home() {
         if (historicalEpoch > 0) {
           historicalPromises.push(
             getRoundDetails(BigInt(historicalEpoch), connectedAccount)
-              .then((round) => ({
-                round,
-                status: RoundStatus.EXPIRED,
-                epoch: BigInt(historicalEpoch),
-              }))
+              .then((round) => {
+                // Round immediately before current (epoch - 1) is CALCULATING
+                // All older rounds are EXPIRED
+                const status = historicalEpoch === epoch - 1 
+                  ? RoundStatus.CALCULATING 
+                  : RoundStatus.EXPIRED;
+                
+                return {
+                  round,
+                  status,
+                  epoch: BigInt(historicalEpoch),
+                };
+              })
               .catch((error) => {
                 console.error(
                   `Error fetching round ${historicalEpoch}:`,
@@ -120,7 +128,7 @@ function Home() {
 
   useEffect(() => {
     fetchRounds();
-    const interval = setInterval(fetchRounds, 10000); // Refresh every 10 seconds
+    const interval = setInterval(fetchRounds, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
   }, [connectedAccount, historicalRoundsCount]);
 

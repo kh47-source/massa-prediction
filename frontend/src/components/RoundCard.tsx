@@ -49,6 +49,8 @@ export default function RoundCard({
         return "bg-green-500";
       case RoundStatus.NEXT:
         return "bg-blue-500";
+      case RoundStatus.CALCULATING:
+        return "bg-yellow-500";
       case RoundStatus.EXPIRED:
         return "bg-gray-500";
       default:
@@ -62,6 +64,8 @@ export default function RoundCard({
         return "from-green-50 to-emerald-50";
       case RoundStatus.NEXT:
         return "from-blue-50 to-cyan-50";
+      case RoundStatus.CALCULATING:
+        return "from-yellow-50 to-amber-50";
       case RoundStatus.EXPIRED:
         return "from-gray-50 to-slate-50";
       default:
@@ -76,6 +80,7 @@ export default function RoundCard({
   const bearPercentage = 100 - bullPercentage;
 
   const isLive = status === RoundStatus.LIVE;
+  const isCalculating = status === RoundStatus.CALCULATING;
   const isExpired = status === RoundStatus.EXPIRED;
   const hasResult = round.closePrice > 0n;
 
@@ -95,7 +100,7 @@ export default function RoundCard({
         <div className="flex items-center gap-2">
           <div
             className={`w-3 h-3 ${getStatusColor()} rounded-full ${
-              isLive ? "animate-pulse" : ""
+              isLive || isCalculating ? "animate-pulse" : ""
             }`}
           ></div>
           <span className="text-sm font-bold text-gray-700">{status}</span>
@@ -126,11 +131,15 @@ export default function RoundCard({
         </div>
       </div>
 
-      {/* Result Display for Expired Rounds */}
-      {isExpired && hasResult && (
-        <div className="mb-4 p-4 bg-white rounded-xl border-3 border-gray-200">
+      {/* Result Display for Calculating/Expired Rounds */}
+      {(isCalculating || isExpired) && hasResult && (
+        <div className={`mb-4 p-4 bg-white rounded-xl border-3 ${
+          isCalculating ? "border-yellow-300" : "border-gray-200"
+        }`}>
           <div className="text-center mb-2">
-            <div className="text-xs text-gray-600 mb-1">Winner</div>
+            <div className="text-xs text-gray-600 mb-1">
+              {isCalculating ? "Detected Winner" : "Winner"}
+            </div>
             <div
               className={`text-2xl font-bold ${
                 winner === "BULL"
@@ -228,6 +237,15 @@ export default function RoundCard({
         <div className="text-center py-3 bg-blue-100 rounded-xl border-2 border-blue-300">
           <span className="text-sm font-semibold text-blue-800">
             ⏳ Waiting to start...
+          </span>
+        </div>
+      )}
+
+      {isCalculating && (
+        <div className="text-center py-3 bg-yellow-100 rounded-xl border-2 border-yellow-400 animate-pulse">
+          <span className="text-sm font-semibold text-yellow-800 flex items-center justify-center gap-2">
+            <span className="inline-block animate-spin">⚙️</span>
+            <span>Calculating results...</span>
           </span>
         </div>
       )}
