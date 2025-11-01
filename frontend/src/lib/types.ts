@@ -4,6 +4,11 @@ import {
   type Serializable,
 } from "@massalabs/massa-web3";
 
+export enum Position {
+  Bear = 0,
+  Bull = 1,
+}
+
 export class Round implements Serializable<Round> {
   constructor(
     public epoch: bigint = 0n,
@@ -51,6 +56,34 @@ export class Round implements Serializable<Round> {
     this.bearAmount = args.nextU256();
     this.rewardBaseCalAmount = args.nextU256();
     this.rewardAmount = args.nextU256();
+
+    return { instance: this, offset: args.getOffset() };
+  }
+}
+
+export class BetInfo implements Serializable<BetInfo> {
+  constructor(
+    public position: Position = Position.Bull,
+    public amount: bigint = 0n,
+    public claimed: boolean = false
+  ) {}
+
+  serialize(): Uint8Array {
+    const args = new Args()
+      .addU8(BigInt(this.position))
+      .addU256(this.amount)
+      .addBool(this.claimed)
+      .serialize();
+
+    return args;
+  }
+
+  deserialize(data: Uint8Array, offset: number): DeserializedResult<BetInfo> {
+    const args = new Args(data, offset);
+
+    this.position = Number(args.nextU8()) as Position;
+    this.amount = args.nextU256();
+    this.claimed = args.nextBool();
 
     return { instance: this, offset: args.getOffset() };
   }

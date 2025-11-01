@@ -247,7 +247,10 @@ export async function getCurrentEpoch(provider: Provider): Promise<number> {
   return Number(new Args(values[0]).nextU64());
 }
 
-export async function getRoundDetails(round: bigint, provider: Provider) {
+export async function getRoundDetails(
+  round: bigint,
+  provider: Provider
+): Promise<Round> {
   const roundKey = ROUNDS_MAP_PREFIX + round.toString();
 
   const values = await provider.readStorage(
@@ -260,5 +263,147 @@ export async function getRoundDetails(round: bigint, provider: Provider) {
     throw new Error("Failed to fetch round details from storage");
   }
 
-  return new Args(values[0]).nextSerializable<Round>(Round);
+  const roundData = new Args(values[0]).nextSerializable<Round>(Round);
+
+  console.log("Fetched round details for epoch #", round, " : ", roundData);
+
+  return roundData;
+}
+
+export async function betBull(
+  provider: Provider,
+  epoch: bigint,
+  betAmount: bigint
+): Promise<{ success: boolean; error?: string }> {
+  console.log(
+    `Placing BULL bet of ${betAmount.toString()} on epoch ${epoch.toString()}...`
+  );
+  const toastId = toast.loading(`Placing BULL bet...`);
+
+  try {
+    const contract = new SmartContract(provider, CONTRACT_ADDRESS);
+
+    const betBullArgs = new Args().addU256(epoch).addU256(betAmount);
+
+    const coins = betAmount + parseMas("0.01"); // Adding a small buffer for fees
+
+    const betBullOp = await contract.call("betBull", betBullArgs, {
+      coins,
+    });
+
+    console.log("Operation ID:", betBullOp.id);
+
+    toast.update(toastId, {
+      render: "Waiting for transaction confirmation...",
+      isLoading: true,
+    });
+
+    const status = await betBullOp.waitSpeculativeExecution();
+
+    if (status == OperationStatus.SpeculativeSuccess) {
+      console.log(`✓ BULL bet placed successfully`);
+      toast.update(toastId, {
+        render: "✓ BULL bet placed successfully!",
+        type: "success",
+        isLoading: false,
+        autoClose: 5000,
+      });
+
+      return { success: true };
+    } else {
+      const specEvents = await betBullOp.getSpeculativeEvents();
+      console.error("Failed to place BULL bet, events:", specEvents);
+
+      toast.update(toastId, {
+        render: "✗ Failed to place BULL bet",
+        type: "error",
+        isLoading: false,
+        autoClose: 8000,
+      });
+
+      return { success: false, error: "Failed to place BULL bet" };
+    }
+  } catch (error) {
+    console.error("Error placing BULL bet:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    toast.update(toastId, {
+      render: `✗ BULL bet failed: ${errorMessage}`,
+      type: "error",
+      isLoading: false,
+      autoClose: 8000,
+    });
+
+    return { success: false, error: errorMessage };
+  }
+}
+
+export async function betBear(
+  provider: Provider,
+  epoch: bigint,
+  betAmount: bigint
+): Promise<{ success: boolean; error?: string }> {
+  console.log(
+    `Placing BEAR bet of ${betAmount.toString()} on epoch ${epoch.toString()}...`
+  );
+  const toastId = toast.loading(`Placing BEAR bet...`);
+
+  try {
+    const contract = new SmartContract(provider, CONTRACT_ADDRESS);
+
+    const betBearArgs = new Args().addU256(epoch).addU256(betAmount);
+
+    const coins = betAmount + parseMas("0.01"); // Adding a small buffer for fees
+
+    const betBearOp = await contract.call("betBear", betBearArgs, {
+      coins,
+    });
+
+    console.log("Operation ID:", betBearOp.id);
+
+    toast.update(toastId, {
+      render: "Waiting for transaction confirmation...",
+      isLoading: true,
+    });
+
+    const status = await betBearOp.waitSpeculativeExecution();
+
+    if (status == OperationStatus.SpeculativeSuccess) {
+      console.log(`✓ BEAR bet placed successfully`);
+      toast.update(toastId, {
+        render: "✓ BEAR bet placed successfully!",
+        type: "success",
+        isLoading: false,
+        autoClose: 5000,
+      });
+
+      return { success: true };
+    } else {
+      const specEvents = await betBearOp.getSpeculativeEvents();
+      console.error("Failed to place BEAR bet, events:", specEvents);
+
+      toast.update(toastId, {
+        render: "✗ Failed to place BEAR bet",
+        type: "error",
+        isLoading: false,
+        autoClose: 8000,
+      });
+
+      return { success: false, error: "Failed to place BEAR bet" };
+    }
+  } catch (error) {
+    console.error("Error placing BEAR bet:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+
+    toast.update(toastId, {
+      render: `✗ BEAR bet failed: ${errorMessage}`,
+      type: "error",
+      isLoading: false,
+      autoClose: 8000,
+    });
+
+    return { success: false, error: errorMessage };
+  }
 }

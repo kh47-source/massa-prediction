@@ -1,4 +1,38 @@
+import { Position, Round } from "./types";
+
 export const shortenAddress = (address: string, chars = 10): string => {
   if (!address) return "";
   return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
+};
+
+export const getTimeRemaining = (timestamp: bigint): string => {
+  const now = Date.now();
+  const target = Number(timestamp);
+  // const diff = Math.abs(target - now);
+  const diff = target - now;
+
+  if (diff <= 0) return "00:00:00";
+
+  const hours = Math.floor(diff / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+};
+
+export const calculatePayout = (position: Position, round: Round): string => {
+  const totalAmount = Number(round.totalAmount);
+  const bullAmount = Number(round.bullAmount);
+  const bearAmount = Number(round.bearAmount);
+
+  if (totalAmount === 0) return "0.00";
+
+  const payout =
+    position === Position.Bull
+      ? totalAmount / (bullAmount || 1)
+      : totalAmount / (bearAmount || 1);
+
+  return payout.toFixed(2);
 };
