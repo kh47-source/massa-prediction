@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@massalabs/massa-web3": "^5.2.1-dev.20250627123813",
+    "@massalabs/react-ui-kit": "^1.1.0",
+    "@massalabs/wallet-provider": "^3.2.0",
     "lucide-react": "^0.552.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-toastify": "^11.0.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -27,6 +31,7 @@
     "globals": "^16.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
+    "terser": "^5.44.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.45.0",
     "vite": "npm:rolldown-vite@7.1.14"

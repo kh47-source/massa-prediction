@@ -1,5 +1,6 @@
 import { Wallet, Settings, Bell, TrendingUp } from "lucide-react";
 import { useState, useEffect } from "react";
+import WalletConnect from "./WalletConnect";
 
 export default function Header() {
   const [balance, setBalance] = useState("$12,450.50");
@@ -35,25 +36,7 @@ export default function Header() {
             href="#"
             className="text-foreground hover:text-red-600 font-medium transition duration-300 hover:scale-105"
           >
-            Trade
-          </a>
-          <a
-            href="#"
-            className="text-foreground hover:text-red-600 font-medium transition duration-300 hover:scale-105"
-          >
             Markets
-          </a>
-          <a
-            href="#"
-            className="text-foreground hover:text-red-600 font-medium transition duration-300 hover:scale-105"
-          >
-            Portfolio
-          </a>
-          <a
-            href="#"
-            className="text-foreground hover:text-red-600 font-medium transition duration-300 hover:scale-105"
-          >
-            Leaderboard
           </a>
         </nav>
 
@@ -73,10 +56,9 @@ export default function Header() {
           <button className="p-2 hover:bg-red-50 rounded-lg transition duration-300 hover:scale-110">
             <Settings className="w-5 h-5 text-foreground" />
           </button>
-          <button className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-2 rounded-lg font-semibold hover:shadow-lg transition duration-300 hover:scale-105 flex items-center gap-2">
-            <Wallet className="w-4 h-4" />
-            Connect
-          </button>
+          <div>
+            <WalletConnect />
+          </div>
         </div>
       </div>
     </header>
