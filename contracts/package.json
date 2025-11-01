@@ -5,6 +5,7 @@
     "main": "index.js",
     "scripts": {
         "test": "asp --summary",
+        "test:workflow": "npm run build && tsx src/test.ts",
         "build": "massa-as-compile",
         "clean": "rimraf build",
         "deploy": "npm run build && tsx src/deploy.ts",
@@ -15,7 +16,9 @@
         "lint:fix": "eslint . --fix",
         "fmt:check": "npm run prettier && npm run lint",
         "fmt": "npm run prettier:fix && npm run lint:fix",
-        "events": "tsx src/events.ts"
+        "events": "tsx src/events.ts",
+        "genesis:start": "tsx src/startGenesis.ts",
+        "genesis:lock": "tsx src/lockGenesis.ts"
     },
     "keywords": [],
     "author": "",
