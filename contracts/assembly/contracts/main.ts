@@ -169,8 +169,8 @@ export function genesisLockRound(): void {
 
   let currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
 
-  // TODO: Here we would normally get the price from the oracle
-  const currentPrice = u256.fromU32(1000); // Placeholder price
+  // Fetch current Price
+  const currentPrice = _getTokenPrice();
 
   // Lock the current round
   _safeLockRound(currentEpoch, currentPrice);
