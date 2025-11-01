@@ -49,7 +49,7 @@ function Home() {
 
       // Fetch historical rounds (EXPIRED) - fetch in parallel
       const historicalPromises = [];
-      
+
       for (let i = historicalRoundsCount; i >= 1; i--) {
         const historicalEpoch = epoch - i;
         if (historicalEpoch > 0) {
@@ -61,7 +61,10 @@ function Home() {
                 epoch: BigInt(historicalEpoch),
               }))
               .catch((error) => {
-                console.error(`Error fetching round ${historicalEpoch}:`, error);
+                console.error(
+                  `Error fetching round ${historicalEpoch}:`,
+                  error
+                );
                 return null;
               })
           );
@@ -69,7 +72,9 @@ function Home() {
       }
 
       const historicalResults = await Promise.all(historicalPromises);
-      roundsData.push(...historicalResults.filter((r) => r !== null) as RoundCardData[]);
+      roundsData.push(
+        ...(historicalResults.filter((r) => r !== null) as RoundCardData[])
+      );
 
       // Fetch current round (LIVE)
       if (epoch > 0) {
@@ -127,7 +132,9 @@ function Home() {
       );
       if (liveRoundIndex !== -1) {
         const cardWidth = 380 + 24; // card width + gap
-        const scrollPosition = liveRoundIndex * cardWidth - (scrollContainerRef.current.clientWidth / 2 - cardWidth / 2);
+        const scrollPosition =
+          liveRoundIndex * cardWidth -
+          (scrollContainerRef.current.clientWidth / 2 - cardWidth / 2);
         scrollContainerRef.current.scrollTo({
           left: Math.max(0, scrollPosition),
           behavior: "smooth",
@@ -279,15 +286,15 @@ function Home() {
                 </>
               )}
 
-              <div 
+              <div
                 ref={scrollContainerRef}
                 className="overflow-x-auto pb-4 scrollbar-hide"
               >
-                <div className="flex gap-6 px-4 min-w-max">
+                <div className="flex items-stretch gap-6 px-4 min-w-max py-10">
                   {rounds.map((roundData) => (
-                    <div 
-                      key={roundData.epoch.toString()} 
-                      className="w-[380px] flex-shrink-0"
+                    <div
+                      key={roundData.epoch.toString()}
+                      className="w-[380px] flex-shrink-0 min-h-full"
                       id={`round-${roundData.epoch.toString()}`}
                     >
                       <RoundCard
@@ -299,7 +306,7 @@ function Home() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Scroll Indicator */}
               {rounds.length > 3 && (
                 <div className="text-center mt-4">
@@ -310,23 +317,27 @@ function Home() {
                   </p>
                 </div>
               )}
-              
+
               {/* Round Counter and Load More */}
               <div className="text-center mt-4 space-y-3">
                 <p className="text-xs text-gray-400">
                   Showing {rounds.length} round{rounds.length !== 1 ? "s" : ""}
                 </p>
-                
+
                 {/* Load More Button */}
-                {currentEpoch > 0 && historicalRoundsCount < 20 && historicalRoundsCount < currentEpoch && (
-                  <button
-                    onClick={loadMoreRounds}
-                    disabled={loading}
-                    className="brut-btn bg-white hover:bg-purple-50 text-purple-600 border-purple-500 px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    📜 Load More History ({Math.min(5, currentEpoch - historicalRoundsCount)} more rounds)
-                  </button>
-                )}
+                {currentEpoch > 0 &&
+                  historicalRoundsCount < 20 &&
+                  historicalRoundsCount < currentEpoch && (
+                    <button
+                      onClick={loadMoreRounds}
+                      disabled={loading}
+                      className="brut-btn bg-white hover:bg-purple-50 text-purple-600 border-purple-500 px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      📜 Load More History (
+                      {Math.min(5, currentEpoch - historicalRoundsCount)} more
+                      rounds)
+                    </button>
+                  )}
               </div>
             </div>
           </>

@@ -88,7 +88,7 @@ export default function RoundCard({
 
   return (
     <div
-      className={`brut-card bg-gradient-to-br ${getStatusBg()} p-6 hover:translate-y-[-4px] transition-all duration-300`}
+      className={`brut-card bg-gradient-to-br ${getStatusBg()} p-6 hover:translate-y-[-4px] transition-all duration-300 h-full`}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
