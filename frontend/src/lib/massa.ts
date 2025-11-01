@@ -173,6 +173,66 @@ export async function genesisLockRound(
   }
 }
 
+export async function executeRound(
+  provider: Provider
+): Promise<{ success: boolean; error?: string }> {
+  console.log("Executing round...");
+  const toastId = toast.loading(`Executing round...`);
+
+  try {
+    const contract = new SmartContract(provider, CONTRACT_ADDRESS);
+
+    const executeOp = await contract.call("executeRound", new Args(), {
+      coins: parseMas("0.03"),
+    });
+
+    console.log("Operation ID:", executeOp.id);
+
+    toast.update(toastId, {
+      render: "Waiting for transaction confirmation...",
+      isLoading: true,
+    });
+
+    const status = await executeOp.waitSpeculativeExecution();
+
+    if (status == OperationStatus.SpeculativeSuccess) {
+      console.log("✓ Round executed successfully");
+      toast.update(toastId, {
+        render: "✓ Round executed successfully",
+        type: "success",
+        isLoading: false,
+        autoClose: 5000,
+      });
+
+      return { success: true };
+    } else {
+      const specEvents = await executeOp.getSpeculativeEvents();
+
+      console.error("Failed to execute round, events:", specEvents);
+
+      toast.update(toastId, {
+        render: "✗ Failed to execute round",
+        type: "error",
+        isLoading: false,
+        autoClose: 8000,
+      });
+
+      return { success: false, error: "Failed to execute round" };
+    }
+  } catch (error) {
+    console.error("Error executing round:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    toast.update(toastId, {
+      render: `✗ Execute round failed: ${errorMessage}`,
+      type: "error",
+      isLoading: false,
+      autoClose: 8000,
+    });
+    return { success: false, error: errorMessage };
+  }
+}
+
 export async function getCurrentEpoch(provider: Provider): Promise<number> {
   const values = await provider.readStorage(
     CONTRACT_ADDRESS,

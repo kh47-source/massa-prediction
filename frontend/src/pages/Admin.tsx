@@ -9,6 +9,7 @@ import {
   getIsGenesisLocked,
   getIsGenesisStarted,
   getRoundDetails,
+  executeRound,
 } from "../lib/massa";
 import { toast } from "react-toastify";
 import type { Round } from "../lib/types";
@@ -20,6 +21,7 @@ export default function Admin() {
   const [genesisLocked, setGenesisLocked] = useState(false);
   const [isGenesisStartedLoading, setIsGenesisStartedLoading] = useState(false);
   const [isGenesisLockedLoading, setIsGenesisLockedLoading] = useState(false);
+  const [isExecuteRoundLoading, setIsExecuteRoundLoading] = useState(false);
   const [currentEpoch, setCurrentEpoch] = useState<number | null>(null);
   const [currentRoundDetails, setCurrentRoundDetails] = useState<Round | null>(
     null
@@ -115,6 +117,26 @@ export default function Admin() {
     }
   };
 
+  const handleExecuteRound = async () => {
+    if (!connectedAccount) {
+      return;
+    }
+
+    setIsExecuteRoundLoading(true);
+
+    try {
+      const result = await executeRound(connectedAccount);
+
+      if (result.success) {
+        await refreshStatus();
+      }
+    } catch (error) {
+      console.error("Error executing round:", error);
+    } finally {
+      setIsExecuteRoundLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-gray-500">
       <div className="container mx-auto rounded-lg border-2 border-red-200 py-5">
@@ -139,16 +161,42 @@ export default function Admin() {
           <div className="mt-8 px-4">
             <div className="max-w-6xl mx-auto">
               <div className="brut-card bg-gradient-to-br from-red-50 to-orange-50 p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-ink-950">
-                    📊 Round #{currentRoundDetails.epoch.toString()} Details
-                  </h2>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-semibold text-gray-700">
-                      Live
-                    </span>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-2xl font-bold text-ink-950">
+                      📊 Round #{currentRoundDetails.epoch.toString()} Details
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-semibold text-gray-700">
+                        Live
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Execute Round Button */}
+                  <button
+                    onClick={handleExecuteRound}
+                    disabled={isExecuteRoundLoading}
+                    className="brut-btn relative overflow-hidden group bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed disabled:active:translate-y-0 whitespace-nowrap"
+                  >
+                    <span className="relative z-10 flex items-center justify-center gap-2">
+                      {isExecuteRoundLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Executing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>⚡</span>
+                          <span>Execute Round</span>
+                        </>
+                      )}
+                    </span>
+                    {!isExecuteRoundLoading && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-indigo-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    )}
+                  </button>
                 </div>
 
                 {/* Stats Grid */}
