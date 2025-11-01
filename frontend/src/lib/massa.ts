@@ -105,3 +105,59 @@ export async function genesisStartRound(
     return { success: false, error: errorMessage };
   }
 }
+
+export async function genesisLockRound(
+  provider: Provider
+): Promise<{ success: boolean; error?: string }> {
+  console.log("Locking genesis round...");
+  const toastId = toast.loading(`Locking genesis round...`);
+
+  try {
+    const contract = new SmartContract(provider, CONTRACT_ADDRESS);
+
+    const genesisLockOp = await contract.call("genesisLockRound", new Args());
+
+    console.log("Operation ID:", genesisLockOp.id);
+
+    toast.update(toastId, {
+      render: "Waiting for transaction confirmation...",
+      isLoading: true,
+    });
+
+    const status = await genesisLockOp.waitSpeculativeExecution();
+
+    if (status == OperationStatus.SpeculativeSuccess) {
+      console.log("✓ Genesis round locked successfully");
+      toast.update(toastId, {
+        render: "✓ Genesis round locked successfully",
+        type: "success",
+        isLoading: false,
+        autoClose: 5000,
+      });
+
+      return { success: true };
+    } else {
+      const specEvents = await genesisLockOp.getSpeculativeEvents();
+      console.error("Failed to lock genesis round, events:", specEvents);
+      toast.update(toastId, {
+        render: "✗ Failed to lock genesis round",
+        type: "error",
+        isLoading: false,
+        autoClose: 8000,
+      });
+
+      return { success: false, error: "Failed to lock genesis round" };
+    }
+  } catch (error) {
+    console.error("Error locking genesis round:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    toast.update(toastId, {
+      render: `✗ Genesis lockRound failed: ${errorMessage}`,
+      type: "error",
+      isLoading: false,
+      autoClose: 8000,
+    });
+    return { success: false, error: errorMessage };
+  }
+}

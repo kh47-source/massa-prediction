@@ -3,6 +3,7 @@ import { ADMIN_ADDRESS } from "../lib/const";
 import { shortenAddress } from "../lib/utils";
 import { useAccountStore } from "@massalabs/react-ui-kit";
 import {
+  genesisLockRound,
   genesisStartRound,
   getIsGenesisLocked,
   getIsGenesisStarted,
@@ -15,6 +16,7 @@ export default function Admin() {
   const [genesisStarted, setGenesisStarted] = useState(false);
   const [genesisLocked, setGenesisLocked] = useState(false);
   const [isGenesisStartedLoading, setIsGenesisStartedLoading] = useState(false);
+  const [isGenesisLockedLoading, setIsGenesisLockedLoading] = useState(false);
   const { connectedAccount } = useAccountStore();
 
   const fetchGenesisStatus = async () => {
@@ -58,6 +60,26 @@ export default function Admin() {
       console.error("Error starting genesis round:", error);
     } finally {
       setIsGenesisStartedLoading(false);
+    }
+  };
+
+  const handleLockGenesisRound = async () => {
+    if (!connectedAccount) {
+      return;
+    }
+
+    setIsGenesisLockedLoading(true);
+
+    try {
+      const result = await genesisLockRound(connectedAccount);
+
+      if (result.success) {
+        await fetchGenesisStatus();
+      }
+    } catch (error) {
+      console.error("Error locking genesis round:", error);
+    } finally {
+      setIsGenesisLockedLoading(false);
     }
   };
 
@@ -123,14 +145,15 @@ export default function Admin() {
               </button>
 
               <button
-                disabled={loading || updating !== null}
+                onClick={handleLockGenesisRound}
+                disabled={isGenesisLockedLoading || genesisLocked}
                 className="inline-flex items-center justify-center rounded-md bg-gray-900 text-white px-4 py-2 text-sm font-medium hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {updating === "lock"
-                  ? "Updating…"
+                {isGenesisLockedLoading
+                  ? "Locking…"
                   : genesisLocked
-                  ? "Unset genesisLock"
-                  : "Set genesisLock"}
+                  ? "Genesis Round Already Locked"
+                  : "Lock Genesis Round"}
               </button>
             </div>
 
