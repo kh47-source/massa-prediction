@@ -5,6 +5,7 @@ import { useAccountStore } from "@massalabs/react-ui-kit";
 import {
   genesisLockRound,
   genesisStartRound,
+  getCurrentEpoch,
   getIsGenesisLocked,
   getIsGenesisStarted,
 } from "../lib/massa";
@@ -12,11 +13,12 @@ import { toast } from "react-toastify";
 
 export default function Admin() {
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<null | "started" | "lock">(null);
+  const [isCurrentEpochLoading, setIsCurrentEpochLoading] = useState(true);
   const [genesisStarted, setGenesisStarted] = useState(false);
   const [genesisLocked, setGenesisLocked] = useState(false);
   const [isGenesisStartedLoading, setIsGenesisStartedLoading] = useState(false);
   const [isGenesisLockedLoading, setIsGenesisLockedLoading] = useState(false);
+  const [currentEpoch, setCurrentEpoch] = useState<number | null>(null);
   const { connectedAccount } = useAccountStore();
 
   const fetchGenesisStatus = async () => {
@@ -39,7 +41,19 @@ export default function Admin() {
     setLoading(false);
   };
 
+  const fetchCurrentEpoch = async () => {
+    if (!connectedAccount) {
+      return;
+    }
+
+    setIsCurrentEpochLoading(true);
+    const currentEpoch = await getCurrentEpoch(connectedAccount!);
+    setCurrentEpoch(currentEpoch);
+    setIsCurrentEpochLoading(false);
+  };
+
   useEffect(() => {
+    fetchCurrentEpoch();
     fetchGenesisStatus();
   }, [connectedAccount]);
 
@@ -92,6 +106,15 @@ export default function Admin() {
             {shortenAddress(ADMIN_ADDRESS)}
           </span>
         </h1>
+
+        <div className="mt-8 px-4 text-center">
+          <h2 className="text-xl font-semibold text-gray-600 mb-4 gap-5">
+            Current Round:{" "}
+            <span className="text-xl text-red-600 font-bold">
+              {isCurrentEpochLoading ? "Loading..." : currentEpoch}
+            </span>
+          </h2>
+        </div>
 
         <div className="mt-8 px-4">
           <div className="rounded-xl border border-gray-200 shadow-sm p-6 max-w-2xl mx-auto">

@@ -13,6 +13,7 @@ import {
 import { toast } from "react-toastify";
 import {
   CONTRACT_ADDRESS,
+  CURRENT_EPOCH_KEY,
   IS_GENESIS_LOCKED_KEY,
   IS_GENESIS_STARTED_KEY,
 } from "./const";
@@ -160,4 +161,18 @@ export async function genesisLockRound(
     });
     return { success: false, error: errorMessage };
   }
+}
+
+export async function getCurrentEpoch(provider: Provider): Promise<number> {
+  const values = await provider.readStorage(
+    CONTRACT_ADDRESS,
+    [CURRENT_EPOCH_KEY],
+    false
+  );
+
+  if (!values || values.length === 0 || values[0] === null) {
+    throw new Error("Failed to fetch current epoch from storage");
+  }
+
+  return Number(new Args(values[0]).nextU64());
 }
