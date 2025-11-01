@@ -12,8 +12,8 @@ import { getScByteCode } from './utils';
 
 export async function deployPredictionMarketContract(
   provider: JsonRpcProvider,
-  intervalSeconds = 300,
-  bufferSeconds = 60,
+  intervalSeconds = 300000,
+  bufferSeconds = 60000,
 ): Promise<SmartContract> {
   console.log('Deploying contract...');
 

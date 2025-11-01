@@ -148,7 +148,7 @@ export function genesisStartRound(): void {
   Storage.set(CURRENT_EPOCH_KEY, u256ToBytes(newCurrentEpoch));
 
   // Start the first round
-  // _startRound(newCurrentEpoch)
+  _startRound(newCurrentEpoch);
 
   // Update genesis started flag
   Storage.set(IS_GENESIS_STARTED_KEY, boolToByte(true));
@@ -169,8 +169,8 @@ export function genesisLockRound(): void {
 
   let currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
 
-  // TODO: Here we would normally get the price from the oracle
-  const currentPrice = u256.fromU32(1000); // Placeholder price
+  // Fetch current Price
+  const currentPrice = _getTokenPrice();
 
   // Lock the current round
   _safeLockRound(currentEpoch, currentPrice);

@@ -13,7 +13,9 @@ import { deployPredictionMarketContract } from './calls';
 const account = await Account.fromEnv();
 const provider = JsonRpcProvider.buildnet(account);
 
-const contract = await deployPredictionMarketContract(provider);
+
+// Intervals is 2 min, byffer is very large
+const contract = await deployPredictionMarketContract(provider, 120000, 300000000);
 
 const events = await provider.getEvents({
   smartContractAddress: contract.address,

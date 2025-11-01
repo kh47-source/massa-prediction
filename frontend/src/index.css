@@ -1,0 +1,166 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light dark;
+}
+
+/* Custom scrollbar styling */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(147, 51, 234, 0.3) transparent;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 0 20px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb {
+  background: rgba(147, 51, 234, 0.3);
+  border-radius: 10px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb:hover {
+  background: rgba(147, 51, 234, 0.5);
+}
+
+/* Neo‑Brutalist helpers */
+.bento-bg {
+  box-shadow: 0 0 0 3px #0e0e10 inset;
+}
+.brut-card {
+  @apply border-3 border-ink-950 rounded-3xl shadow-brut;
+}
+.brut-btn {
+  @apply border-3 border-ink-950 px-5 py-3 rounded-2xl font-bold transition-transform active:translate-y-1;
+}
+.brut-link {
+  @apply underline decoration-4 decoration-ink-950;
+}
+
+/* react ui kit connect wallet modal */
+#options {
+  border: 3px solid #0e0e10;
+  border-radius: 2rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  box-shadow: 8px 8px 0 0 rgba(14, 14, 16, 0.25);
+}
+
+#options > ul > li {
+  border-bottom: 3px solid #0e0e10;
+  border-radius: 0px;
+  transition: background-color 0.2s ease;
+}
+
+#options > ul > li:first-child {
+  border-top-left-radius: 2rem;
+  border-top-right-radius: 2rem;
+}
+
+#options > ul > li:last-child {
+  border-bottom: none;
+  border-bottom-left-radius: 2rem;
+  border-bottom-right-radius: 2rem;
+}
+
+#options > ul > li:hover {
+  background-color: #fd5a46 !important;
+}
+
+#options > ul > li > div {
+  border-radius: 0px;
+  padding: 1rem;
+  font-weight: 600;
+  color: #0e0e10;
+}
+
+#dropdownUiKitButton {
+  border: 3px solid #0e0e10;
+  border-radius: 2rem;
+  box-shadow: 8px 8px 0 0 rgba(14, 14, 16, 0.25);
+  background-color: white;
+  color: #0e0e10;
+  font-weight: 600;
+  padding: 1rem 1.5rem;
+  transition: all 0.2s ease;
+}
+
+#dropdownUiKitButton:hover {
+  background-color: #fd5a46;
+  transform: translateY(2px);
+  box-shadow: 6px 6px 0 0 rgba(14, 14, 16, 0.25);
+}
+
+/* react tostify customization  */
+/* :root {
+  --toastify-color-info: #f6c955;
+  --toastify-color-success: #166534;
+  --toastify-color-warning: #ffa500;
+  --toastify-color-error: #b91c1c;
+  --toastify-toast-width: 424px;
+  --toastify-font-family: "DM Sans", sans-serif;
+} */
+
+.Toastify__toast-container {
+  max-width: 90vw !important;
+}
+/* 
+.Toastify__toast {
+  border: 2px solid #1e1e1e !important;
+  border-bottom-width: 4px !important;
+  border-right-width: 4px !important;
+  border-radius: 35px !important;
+  box-shadow: -8px 8px 16px 0px rgba(133, 133, 133, 0.15) !important;
+  font-family: "DM Sans", sans-serif !important;
+  font-weight: 700 !important;
+  color: #1e1e1e !important;
+  padding: 16px !important;
+  margin-bottom: 1rem !important;
+  background: #f6f6f6 !important;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--info {
+  background: #fffbe6 !important;
+  border-color: #1e1e1e !important;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--success {
+  background: #dcfce7 !important;
+  border-color: #1e1e1e !important;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--warning {
+  background: #fff4e5 !important;
+  border-color: #1e1e1e !important;
+}
+
+.Toastify__toast-theme--colored.Toastify__toast--error {
+  background: #fef2f2 !important;
+  border-color: #1e1e1e !important;
+}
+
+.Toastify__close-button {
+  color: #1e1e1e !important;
+  align-self: flex-start !important;
+}
+
+.Toastify__toast-icon {
+  margin-right: 12px !important;
+}
+
+.Toastify__toast-body {
+  align-items: flex-start !important;
+  padding: 0 !important;
+}
+
+.Toastify__progress-bar {
+  background: rgba(30, 30, 30, 0.2) !important;
+} */
