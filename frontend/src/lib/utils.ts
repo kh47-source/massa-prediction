@@ -1,3 +1,4 @@
+import { formatMas } from "@massalabs/massa-web3";
 import { Position, Round } from "./types";
 
 export const shortenAddress = (address: string, chars = 10): string => {
@@ -23,9 +24,11 @@ export const getTimeRemaining = (timestamp: bigint): string => {
 };
 
 export const calculatePayout = (position: Position, round: Round): string => {
-  const totalAmount = Number(round.totalAmount);
-  const bullAmount = Number(round.bullAmount);
-  const bearAmount = Number(round.bearAmount);
+  const totalAmount = Number(formatMas(round.totalAmount));
+  const bullAmount = Number(formatMas(round.bullAmount));
+  const bearAmount = Number(formatMas(round.bearAmount));
+
+    
 
   if (totalAmount === 0) return "0.00";
 
