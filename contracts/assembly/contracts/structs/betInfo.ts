@@ -1,6 +1,5 @@
-import { Args, Result, Serializable } from "@massalabs/as-types";
-import { Position } from "../main";
-import { u256 } from "as-bignum/assembly";
+import { Args, Result, Serializable } from '@massalabs/as-types';
+import { Position } from '../main';
 
 /**
  * BetInfo struct to store user betting information
@@ -8,7 +7,7 @@ import { u256 } from "as-bignum/assembly";
 export class BetInfo implements Serializable {
   constructor(
     public position: Position = Position.Bull,
-    public amount: u256 = u256.Zero,
+    public amount: u64 = 0,
     public claimed: bool = false,
   ) {}
 
@@ -24,7 +23,7 @@ export class BetInfo implements Serializable {
     const args = new Args(data, offset);
 
     this.position = args.nextU8().expect('Invalid position') as Position;
-    this.amount = args.nextU256().expect('Invalid amount');
+    this.amount = args.nextU64().expect('Invalid amount');
     this.claimed = args.nextBool().expect('Invalid claimed');
 
     return new Result(args.offset);
