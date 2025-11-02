@@ -6,8 +6,7 @@ import ConnectWalletModal from "./ConnectWalletModal";
 export default function WalletConnect() {
   const [toggleConnectWalletModal, setToggleConnectWalletModal] =
     useState(false);
-  const { connectedAccount, currentWallet } = useAccountStore();
-  const [network, setNetwork] = useState<string | null>(null);
+  const { connectedAccount } = useAccountStore();
   const [selectedAccount, setSelectedAccount] = useState(
     connectedAccount?.address || ""
   );
@@ -24,14 +23,14 @@ export default function WalletConnect() {
     <>
       {connectedAccount ? (
         <button
-          className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition duration-300 hover:scale-105 flex items-center gap-2"
+          className="bg-up-bg hover:bg-up-border  border-0 shadow-none text-white px-5 py-2.5 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
           onClick={handleConnectClick}
         >
-          Connected: {shortenAddress(selectedAccount, 3)}
+          {shortenAddress(selectedAccount, 4)}
         </button>
       ) : (
         <button
-          className="bg-gradient-to-r from-red-600 to-red-700 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition duration-300 hover:scale-105 flex items-center gap-2"
+          className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-all duration-200 flex items-center gap-2"
           onClick={handleConnectClick}
         >
           Connect Wallet

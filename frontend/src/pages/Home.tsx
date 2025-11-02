@@ -12,17 +12,32 @@ import { Position } from "../lib/types";
 import { formatMas, parseMas } from "@massalabs/massa-web3";
 import type { RoundCardData } from "../components/RoundCard";
 import RoundCard, { RoundStatus } from "../components/RoundCard";
+import BetModal from "../components/BetModal";
 import { toast } from "react-toastify";
+import {
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  Wallet,
+  Clock,
+} from "lucide-react";
+import { Round } from "../lib/types";
 
 function Home() {
   const { connectedAccount } = useAccountStore();
   const [currentEpoch, setCurrentEpoch] = useState<number>(0);
   const [rounds, setRounds] = useState<RoundCardData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [betAmount, setBetAmount] = useState<string>("100");
   const [isGenesisReady, setIsGenesisReady] = useState(false);
   const [historicalRoundsCount, setHistoricalRoundsCount] = useState<number>(5);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Modal state
+  const [isBetModalOpen, setIsBetModalOpen] = useState(false);
+  const [selectedPosition, setSelectedPosition] = useState<Position>(
+    Position.Bull
+  );
+  const [selectedEpoch, setSelectedEpoch] = useState<bigint>(0n);
 
   const fetchRounds = async () => {
     if (!connectedAccount) {
@@ -103,20 +118,85 @@ function Home() {
         }
       }
 
-      // Fetch next round
+      // Fetch next round (or create placeholder)
+      let nextRoundData: RoundCardData | null = null;
       if (epoch >= 0) {
         try {
           const nextRound = await getRoundDetails(
             BigInt(epoch + 1),
             connectedAccount
           );
-          roundsData.push({
+          nextRoundData = {
             round: nextRound,
             status: RoundStatus.NEXT,
             epoch: BigInt(epoch + 1),
-          });
+          };
+          roundsData.push(nextRoundData);
         } catch (error) {
-          console.error("Error fetching next round:", error);
+          console.log("⚠️ NEXT round doesn't exist yet, creating placeholder");
+          // Create placeholder NEXT round based on current round
+          const currentRoundData = roundsData.find(r => r.status === RoundStatus.LIVE);
+          if (currentRoundData && currentRoundData.round.lockTimestamp > 0n) {
+            const roundDuration = Number(currentRoundData.round.lockTimestamp - currentRoundData.round.startTimestamp);
+            const nextStartTime = currentRoundData.round.lockTimestamp;
+            
+            const nextRound = new Round(
+              BigInt(epoch + 1),
+              nextStartTime,
+              nextStartTime + BigInt(roundDuration),
+              nextStartTime + BigInt(roundDuration * 2),
+              0n, 0n, 0n, 0n, 0n, 0n, 0n
+            );
+            
+            nextRoundData = {
+              round: nextRound,
+              status: RoundStatus.NEXT,
+              epoch: BigInt(epoch + 1),
+            };
+            roundsData.push(nextRoundData);
+            console.log("✅ Created NEXT placeholder round");
+          }
+        }
+      }
+
+      // Create a placeholder LATER round for UX (epoch + 2)
+      if (epoch >= 0 && nextRoundData) {
+        console.log("🔍 Creating LATER round from NEXT round data...");
+        
+        try {
+          // Calculate when the LATER round would start (after NEXT round completes)
+          const nextRoundDuration = Number(nextRoundData.round.lockTimestamp - nextRoundData.round.startTimestamp);
+          const laterStartTime = nextRoundData.round.lockTimestamp + BigInt(nextRoundDuration);
+          
+          console.log("⏱️ LATER round timing:", {
+            nextRoundDuration,
+            laterStartTime: laterStartTime.toString(),
+          });
+          
+          // Create a mock Round instance for display purposes
+          const laterRound = new Round(
+            BigInt(epoch + 2), // epoch
+            laterStartTime, // startTimestamp
+            laterStartTime + BigInt(nextRoundDuration), // lockTimestamp
+            laterStartTime + BigInt(nextRoundDuration * 2), // closeTimestamp
+            0n, // lockPrice
+            0n, // closePrice
+            0n, // totalAmount
+            0n, // bullAmount
+            0n, // bearAmount
+            0n, // rewardBaseCalAmount
+            0n  // rewardAmount
+          );
+          
+          roundsData.push({
+            round: laterRound,
+            status: RoundStatus.LATER,
+            epoch: BigInt(epoch + 2),
+          });
+          
+          console.log("✅ LATER round created! Total rounds:", roundsData.length);
+        } catch (error) {
+          console.error("❌ Error creating LATER placeholder:", error);
         }
       }
 
@@ -158,6 +238,17 @@ function Home() {
       return;
     }
 
+    // Open modal instead of betting directly
+    setSelectedPosition(position);
+    setSelectedEpoch(epoch);
+    setIsBetModalOpen(true);
+  };
+
+  const handleConfirmBet = async (betAmount: string) => {
+    if (!connectedAccount) {
+      return;
+    }
+
     if (!betAmount || isNaN(Number(betAmount)) || Number(betAmount) < 100) {
       toast.error("Please enter a valid bet amount of at least 100 MAS.");
       return;
@@ -167,10 +258,10 @@ function Home() {
       const amount = parseMas(betAmount);
       let result;
 
-      if (position === Position.Bull) {
-        result = await betBull(connectedAccount, epoch, amount);
+      if (selectedPosition === Position.Bull) {
+        result = await betBull(connectedAccount, selectedEpoch, amount);
       } else {
-        result = await betBear(connectedAccount, epoch, amount);
+        result = await betBear(connectedAccount, selectedEpoch, amount);
       }
 
       if (result.success) {
@@ -205,137 +296,134 @@ function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50">
+    <div className="min-h-screen">
       <main className="container mx-auto px-4 py-8">
         {/* Hero Section */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-4">
-            🔮 Massa Prediction Market
-          </h1>
-          <p className="text-xl text-gray-600 mb-2">
-            Predict MAS price movements and win rewards!
-          </p>
-          <p className="text-sm text-gray-500">
-            Powered by Dusa DEX Price Feeds
+        <div className="mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Prediction Markets
+          </h2>
+          <p className="text-gray-300">
+            Trade on MAS price predictions and earn rewards
           </p>
         </div>
 
         {!connectedAccount ? (
           <div className="max-w-2xl mx-auto">
-            <div className="brut-card bg-white p-12 text-center">
-              <div className="text-6xl mb-6">🔌</div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            <div className="brut-card p-12 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-purple-600/20 flex items-center justify-center">
+                  <Wallet className="w-8 h-8 text-purple-400" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-4">
                 Connect Your Wallet
               </h2>
-              <p className="text-gray-600 mb-8">
+              <p className="text-gray-300 mb-8">
                 Connect your Massa wallet to start predicting and earning
                 rewards!
               </p>
-              <div className="inline-block px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-semibold">
-                Use the wallet button in the header →
-              </div>
             </div>
           </div>
         ) : !isGenesisReady ? (
           <div className="max-w-2xl mx-auto">
-            <div className="brut-card bg-gradient-to-br from-yellow-50 to-orange-50 p-12 text-center">
-              <div className="text-6xl mb-6">⏳</div>
-              <h2 className="text-3xl font-bold text-gray-800 mb-4">
+            <div className="brut-card p-12 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                  <Clock className="w-8 h-8 text-yellow-400" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-4">
                 Market Not Started
               </h2>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-300 mb-4">
                 The prediction market hasn't been initialized yet.
               </p>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-400">
                 Please contact the admin to start the genesis rounds.
               </p>
             </div>
           </div>
-        ) : loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="text-center">
-              <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-              <p className="text-gray-600 font-semibold">Loading rounds...</p>
-            </div>
-          </div>
         ) : (
           <>
-            {/* Bet Amount Input */}
-            <div className="max-w-md mx-auto mb-8">
-              <div className="brut-card bg-white p-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Bet Amount (MAS)
-                </label>
-                <input
-                  type="number"
-                  value={betAmount}
-                  onChange={(e) => setBetAmount(e.target.value)}
-                  min="1"
-                  step="0.1"
-                  className="w-full px-4 py-3 border-3 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none text-lg font-semibold"
-                  placeholder="Enter amount"
-                />
-                <p className="text-xs text-gray-500 mt-2">Minimum bet: 1 MAS</p>
-              </div>
-            </div>
-
             {/* Rounds Container - Horizontal Scroll */}
-            <div className="relative max-w-full">
-              {/* Navigation Buttons */}
-              {rounds.length > 2 && (
-                <>
-                  <button
-                    onClick={scrollLeft}
-                    className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 items-center justify-center bg-white border-3 border-gray-800 rounded-full shadow-lg hover:bg-purple-50 transition-all hover:scale-110"
-                    aria-label="Scroll left"
-                  >
-                    <span className="text-2xl">←</span>
-                  </button>
-                  <button
-                    onClick={scrollRight}
-                    className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-12 h-12 items-center justify-center bg-white border-3 border-gray-800 rounded-full shadow-lg hover:bg-purple-50 transition-all hover:scale-110"
-                    aria-label="Scroll right"
-                  >
-                    <span className="text-2xl">→</span>
-                  </button>
-                </>
-              )}
-
+            <div className="relative max-w-full py-10">
               <div
                 ref={scrollContainerRef}
                 className="overflow-x-auto pb-4 scrollbar-hide"
               >
-                <div className="flex items-stretch gap-6 px-4 min-w-max py-10">
-                  {rounds.map((roundData) => (
-                    <div
-                      key={roundData.epoch.toString()}
-                      className="w-[380px] flex-shrink-0 min-h-full"
-                      id={`round-${roundData.epoch.toString()}`}
-                    >
-                      <RoundCard
-                        roundData={roundData}
-                        onBet={handleBet}
-                        formatMas={formatMas}
-                      />
-                    </div>
-                  ))}
+                <div className="flex items-stretch gap-6 px-4 min-w-max">
+                  {loading && rounds.length === 0 ? (
+                    // Only show skeleton if we have NO rounds yet (initial load)
+                    <>
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className="w-[300px] flex-shrink-0 brut-card p-4 animate-pulse"
+                        >
+                          <div className="h-8 bg-white/10 rounded-full w-20 mb-4"></div>
+                          <div className="h-6 bg-white/10 rounded w-24 mb-2"></div>
+                          <div className="h-8 bg-white/10 rounded w-32 mb-4"></div>
+                          <div className="h-4 bg-white/10 rounded w-full mb-2"></div>
+                          <div className="h-20 bg-white/10 rounded w-full mb-4"></div>
+                          <div className="h-10 bg-white/10 rounded w-full mb-2"></div>
+                          <div className="h-10 bg-white/10 rounded w-full"></div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    // Always show rounds if we have them, even while loading
+                    rounds.map((roundData) => (
+                      <div
+                        key={roundData.epoch.toString()}
+                        className="w-[300px] flex-shrink-0 min-h-full"
+                        id={`round-${roundData.epoch.toString()}`}
+                      >
+                        <RoundCard
+                          roundData={roundData}
+                          onBet={handleBet}
+                          formatMas={formatMas}
+                        />
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
+
+              {/* Navigation Buttons - Always show if we have rounds */}
+              {rounds.length > 2 && (
+                <>
+                  <button
+                    onClick={scrollLeft}
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border-2 hover:bg-muted absolute left-0 top-1/2 z-10 -translate-y-1/2 -translate-x-4 h-12 w-12 rounded-full shadow-xl bg-card border-purple-light/30 hover:border-purple-light/60"
+                    aria-label="Scroll left"
+                  >
+                    <ChevronLeft className="h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={scrollRight}
+                    className="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-semibold transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 border-2 hover:bg-muted absolute right-0 top-1/2 z-10 -translate-y-1/2 translate-x-4 h-12 w-12 rounded-full shadow-xl bg-card border-purple-light/30 hover:border-purple-light/60"
+                    aria-label="Scroll right"
+                  >
+                    <ChevronRight className="h-6 w-6" />
+                  </button>
+                </>
+              )}
 
               {/* Scroll Indicator */}
               {rounds.length > 3 && (
                 <div className="text-center mt-4">
-                  <p className="text-sm text-gray-500 flex items-center justify-center gap-2">
-                    <span>←</span>
+                  <p className="text-sm text-muted-foreground flex items-center justify-center gap-2">
+                    <ChevronLeft className="h-4 w-4" />
                     <span>Scroll to see more rounds</span>
-                    <span>→</span>
+                    <ChevronRight className="h-4 w-4" />
                   </p>
                 </div>
               )}
 
               {/* Round Counter and Load More */}
               <div className="text-center mt-4 space-y-3">
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-muted-foreground">
                   Showing {rounds.length} round{rounds.length !== 1 ? "s" : ""}
                 </p>
 
@@ -346,11 +434,14 @@ function Home() {
                     <button
                       onClick={loadMoreRounds}
                       disabled={loading}
-                      className="brut-btn bg-white hover:bg-purple-50 text-purple-600 border-purple-500 px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-2 px-6 py-2 bg-white hover:bg-purple-50 text-purple-600 border-2 border-purple-light/30 hover:border-purple-light/60 rounded-lg font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      📜 Load More History (
-                      {Math.min(5, currentEpoch - historicalRoundsCount)} more
-                      rounds)
+                      <TrendingUp className="h-4 w-4" />
+                      <span>
+                        Load More History (
+                        {Math.min(5, currentEpoch - historicalRoundsCount)} more
+                        rounds)
+                      </span>
                     </button>
                   )}
               </div>
@@ -358,6 +449,15 @@ function Home() {
           </>
         )}
       </main>
+
+      {/* Bet Modal */}
+      <BetModal
+        isOpen={isBetModalOpen}
+        onClose={() => setIsBetModalOpen(false)}
+        onConfirm={handleConfirmBet}
+        position={selectedPosition}
+        epoch={selectedEpoch}
+      />
     </div>
   );
 }
