@@ -60,7 +60,7 @@ export async function genesisStartRound(
       new Args(),
       {
         // coins: parseMas("0.03"),
-        coins: parseMas("30"),
+        coins: parseMas("50"),
       }
     );
 
