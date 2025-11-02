@@ -282,7 +282,7 @@ export async function betBull(
 
     const betBullArgs = new Args().addU64(epoch).addU64(betAmount);
 
-    const coins = betAmount + parseMas("0.01"); // Adding a small buffer for fees
+    const coins = betAmount + parseMas("1.5"); // Adding a small buffer for fees
 
     const betBullOp = await contract.call("betBull", betBullArgs, {
       coins,
@@ -351,7 +351,7 @@ export async function betBear(
 
     const betBearArgs = new Args().addU64(epoch).addU64(betAmount);
 
-    const coins = betAmount + parseMas("0.01"); // Adding a small buffer for fees
+    const coins = betAmount + parseMas("1.5"); // Adding a small buffer for fees
 
     const betBearOp = await contract.call("betBear", betBearArgs, {
       coins,
