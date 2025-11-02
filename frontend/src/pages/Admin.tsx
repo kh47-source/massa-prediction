@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { ADMIN_ADDRESS } from "../lib/const";
 import { formatPrice, shortenAddress } from "../lib/utils";
 import { useAccountStore } from "@massalabs/react-ui-kit";
@@ -12,6 +12,9 @@ import {
   executeRound,
 } from "../lib/massa";
 import type { Round } from "../lib/types";
+
+// Auto-refresh interval in milliseconds (default: 30 seconds)
+const AUTO_REFRESH_INTERVAL = 30000;
 
 export default function Admin() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +32,9 @@ export default function Admin() {
   const [prev2RoundDetails, setPrev2RoundDetails] = useState<Round | null>(
     null
   );
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const [lastRefreshTime, setLastRefreshTime] = useState<Date | null>(null);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const { connectedAccount } = useAccountStore();
 
   const fetchGenesisStatus = async () => {
@@ -109,11 +115,49 @@ export default function Admin() {
   const refreshStatus = async () => {
     await fetchGenesisStatus();
     await fetchCurrentEpoch();
+    setLastRefreshTime(new Date());
   };
 
+  // Clear interval on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, []);
+
+  // Initial fetch when account changes
   useEffect(() => {
     refreshStatus();
   }, [connectedAccount]);
+
+  // Auto-refresh mechanism
+  useEffect(() => {
+    // Clear existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+    }
+
+    // Set up new interval if auto-refresh is enabled and account is connected
+    if (autoRefreshEnabled && connectedAccount) {
+      refreshIntervalRef.current = setInterval(() => {
+        console.log("Auto-refreshing admin data...");
+        refreshStatus();
+      }, AUTO_REFRESH_INTERVAL);
+    }
+
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [autoRefreshEnabled, connectedAccount]);
+
+  const toggleAutoRefresh = () => {
+    setAutoRefreshEnabled((prev) => !prev);
+  };
 
   const handleStartGenesisRound = async () => {
     if (!connectedAccount) {
@@ -192,6 +236,69 @@ export default function Admin() {
               {isCurrentEpochLoading ? "Loading..." : currentEpoch}
             </span>
           </h2>
+        </div>
+
+        {/* Auto-Refresh Control Panel */}
+        <div className="mt-6 px-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="brut-card bg-gradient-to-r from-blue-50 to-cyan-50 p-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`w-3 h-3 rounded-full ${
+                        autoRefreshEnabled
+                          ? "bg-green-500 animate-pulse"
+                          : "bg-gray-400"
+                      }`}
+                    ></div>
+                    <span className="text-sm font-semibold text-gray-700">
+                      Auto-Refresh
+                    </span>
+                  </div>
+                  {lastRefreshTime && (
+                    <span className="text-xs text-gray-600">
+                      Last updated:{" "}
+                      {lastRefreshTime.toLocaleTimeString()}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={refreshStatus}
+                    disabled={loading || isCurrentEpochLoading}
+                    className="brut-btn-sm bg-white hover:bg-gray-50 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-ink-950 font-semibold transition-all hover:translate-y-[-2px] active:translate-y-0 disabled:active:translate-y-0"
+                  >
+                    <span className={loading || isCurrentEpochLoading ? "animate-spin" : ""}>
+                      🔄
+                    </span>
+                    <span>Refresh Now</span>
+                  </button>
+
+                  <button
+                    onClick={toggleAutoRefresh}
+                    className={`brut-btn-sm px-4 py-2 rounded-lg border-2 border-ink-950 font-semibold transition-all hover:translate-y-[-2px] active:translate-y-0 flex items-center gap-2 ${
+                      autoRefreshEnabled
+                        ? "bg-green-500 hover:bg-green-600 text-white"
+                        : "bg-gray-300 hover:bg-gray-400 text-gray-700"
+                    }`}
+                  >
+                    <span>{autoRefreshEnabled ? "⏸️" : "▶️"}</span>
+                    <span>
+                      {autoRefreshEnabled ? "Pause" : "Resume"} Auto-Refresh
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {autoRefreshEnabled && (
+                <div className="mt-3 text-xs text-gray-600 text-center">
+                  ℹ️ Data refreshes automatically every {AUTO_REFRESH_INTERVAL / 1000} seconds
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Current Round Details Section */}

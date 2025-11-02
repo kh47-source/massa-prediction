@@ -13,9 +13,14 @@ import { deployPredictionMarketContract } from './calls';
 const account = await Account.fromEnv();
 const provider = JsonRpcProvider.buildnet(account);
 
+const intervalsMin = 10; // 10 minutes
+const bufferMin = 1440; // 1 day
 
-// Intervals is 2 min, byffer is very large
-const contract = await deployPredictionMarketContract(provider, 120000, 300000000);
+const contract = await deployPredictionMarketContract(
+  provider,
+  intervalsMin * 60 * 1000,
+  bufferMin * 60 * 1000,
+);
 
 const events = await provider.getEvents({
   smartContractAddress: contract.address,

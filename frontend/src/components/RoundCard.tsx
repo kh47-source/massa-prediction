@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Round, Position } from "../lib/types";
 import { calculatePayout, formatPrice, getTimeRemaining } from "../lib/utils";
-import { formatUnits } from "@massalabs/massa-web3";
-import { PRICE_FORMAT_DECIMALS } from "../lib/const";
 
 export enum RoundStatus {
   LIVE = "LIVE",

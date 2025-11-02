@@ -1,22 +1,21 @@
-import { Args, bytesToU256, Result, Serializable } from '@massalabs/as-types';
-import { u256 } from 'as-bignum/assembly';
+import { Args, Result, Serializable } from '@massalabs/as-types';
 
 /**
  * Round struct to store round information
  */
 export class Round implements Serializable {
   constructor(
-    public epoch: u256 = u256.Zero,
+    public epoch: u64 = 0,
     public startTimestamp: u64 = 0,
     public lockTimestamp: u64 = 0,
     public closeTimestamp: u64 = 0,
-    public lockPrice: u256 = u256.Zero,
-    public closePrice: u256 = u256.Zero,
-    public totalAmount: u256 = u256.Zero,
-    public bullAmount: u256 = u256.Zero,
-    public bearAmount: u256 = u256.Zero,
-    public rewardBaseCalAmount: u256 = u256.Zero,
-    public rewardAmount: u256 = u256.Zero,
+    public lockPrice: u64 = 0,
+    public closePrice: u64 = 0,
+    public totalAmount: u64 = 0,
+    public bullAmount: u64 = 0,
+    public bearAmount: u64 = 0,
+    public rewardBaseCalAmount: u64 = 0,
+    public rewardAmount: u64 = 0,
   ) {}
 
   serialize(): StaticArray<u8> {
@@ -38,19 +37,19 @@ export class Round implements Serializable {
   deserialize(data: StaticArray<u8>, offset: i32): Result<i32> {
     const args = new Args(data, offset);
 
-    this.epoch = args.nextU256().expect('Invalid epoch');
+    this.epoch = args.nextU64().expect('Invalid epoch');
     this.startTimestamp = args.nextU64().expect('Invalid start timestamp');
     this.lockTimestamp = args.nextU64().expect('Invalid lock timestamp');
     this.closeTimestamp = args.nextU64().expect('Invalid close timestamp');
-    this.lockPrice = args.nextU256().expect('Invalid lock price');
-    this.closePrice = args.nextU256().expect('Invalid close price');
-    this.totalAmount = args.nextU256().expect('Invalid total amount');
-    this.bullAmount = args.nextU256().expect('Invalid bull amount');
-    this.bearAmount = args.nextU256().expect('Invalid bear amount');
+    this.lockPrice = args.nextU64().expect('Invalid lock price');
+    this.closePrice = args.nextU64().expect('Invalid close price');
+    this.totalAmount = args.nextU64().expect('Invalid total amount');
+    this.bullAmount = args.nextU64().expect('Invalid bull amount');
+    this.bearAmount = args.nextU64().expect('Invalid bear amount');
     this.rewardBaseCalAmount = args
-      .nextU256()
+      .nextU64()
       .expect('Invalid reward base cal amount');
-    this.rewardAmount = args.nextU256().expect('Invalid reward amount');
+    this.rewardAmount = args.nextU64().expect('Invalid reward amount');
 
     return new Result(args.offset);
   }

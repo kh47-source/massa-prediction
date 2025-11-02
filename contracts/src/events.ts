@@ -7,7 +7,8 @@ const account = await Account.fromEnv('PRIVATE_KEY');
 const provider = Web3Provider.buildnet(account);
 
 const events = await provider.getEvents({
-  callerAddress: account.address.toString(),
+  // callerAddress: account.address.toString(),
+  callerAddress: 'AS12D5pGmb7aaQVohZZy5pNM38jTzRTbbt5iMNvCg53ykHX7a25Hf',
 });
 
 for (const event of events) {

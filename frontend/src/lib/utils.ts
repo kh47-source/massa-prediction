@@ -40,5 +40,9 @@ export const calculatePayout = (position: Position, round: Round): string => {
 };
 
 export function formatPrice(price: bigint, decFix = 3): string {
+  console.log("PRICE_FORMAT_DECIMALS:", PRICE_FORMAT_DECIMALS);
+  console.log("price:", price);
+  console.log("formatUnits(price, PRICE_FORMAT_DECIMALS):", formatUnits(price, PRICE_FORMAT_DECIMALS));
   return (1 / Number(formatUnits(price, PRICE_FORMAT_DECIMALS))).toFixed(decFix);
+
 }

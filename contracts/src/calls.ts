@@ -27,7 +27,7 @@ export async function deployPredictionMarketContract(
   const constructorArgs = new Args()
     .addString(poolAddress)
     .addU32(BigInt(treasuryFee))
-    .addU256(minBetAmount)
+    .addU64(minBetAmount)
     .addU64(BigInt(intervalSeconds))
     .addU64(BigInt(bufferSeconds))
     .serialize();
@@ -92,7 +92,7 @@ export async function executeRound(
 
   const executeOp = await contract.call(
     'executeRound',
-    new Args().addU256(epoch),
+    new Args().addU64(epoch),
   );
 
   console.log('Operation ID:', executeOp.id);
@@ -120,7 +120,7 @@ export async function betBull(
 
   const parsedAmount = parseMas(amount.toString());
 
-  const betBullArgs = new Args().addU256(epoch).addU256(parsedAmount);
+  const betBullArgs = new Args().addU64(epoch).addU64(parsedAmount);
 
   const coins = parsedAmount + parseMas('0.01'); // Adding a small buffer for fees
 
@@ -159,7 +159,7 @@ export async function betBear(
 
   const parsedAmount = parseMas(amount.toString());
 
-  const betBearArgs = new Args().addU256(epoch).addU256(parsedAmount);
+  const betBearArgs = new Args().addU64(epoch).addU64(parsedAmount);
 
   const coins = parsedAmount + parseMas('0.01'); // Adding a small buffer for fees
 

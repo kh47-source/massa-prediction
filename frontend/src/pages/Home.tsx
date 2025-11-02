@@ -12,13 +12,14 @@ import { Position } from "../lib/types";
 import { formatMas, parseMas } from "@massalabs/massa-web3";
 import type { RoundCardData } from "../components/RoundCard";
 import RoundCard, { RoundStatus } from "../components/RoundCard";
+import { toast } from "react-toastify";
 
 function Home() {
   const { connectedAccount } = useAccountStore();
   const [currentEpoch, setCurrentEpoch] = useState<number>(0);
   const [rounds, setRounds] = useState<RoundCardData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [betAmount, setBetAmount] = useState<string>("1");
+  const [betAmount, setBetAmount] = useState<string>("100");
   const [isGenesisReady, setIsGenesisReady] = useState(false);
   const [historicalRoundsCount, setHistoricalRoundsCount] = useState<number>(5);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -58,10 +59,11 @@ function Home() {
               .then((round) => {
                 // Round immediately before current (epoch - 1) is CALCULATING
                 // All older rounds are EXPIRED
-                const status = historicalEpoch === epoch - 1 
-                  ? RoundStatus.CALCULATING 
-                  : RoundStatus.EXPIRED;
-                
+                const status =
+                  historicalEpoch === epoch - 1
+                    ? RoundStatus.CALCULATING
+                    : RoundStatus.EXPIRED;
+
                 return {
                   round,
                   status,
@@ -153,6 +155,11 @@ function Home() {
 
   const handleBet = async (position: Position, epoch: bigint) => {
     if (!connectedAccount) {
+      return;
+    }
+
+    if (!betAmount || isNaN(Number(betAmount)) || Number(betAmount) < 100) {
+      toast.error("Please enter a valid bet amount of at least 100 MAS.");
       return;
     }
 
