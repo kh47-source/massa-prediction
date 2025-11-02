@@ -2,11 +2,7 @@ import {
   SmartContract,
   Args,
   parseMas,
-  parseUnits,
   OperationStatus,
-  bytesToStr,
-  MRC20,
-  Web3Provider,
   type Provider,
   byteToBool,
 } from "@massalabs/massa-web3";
@@ -63,7 +59,8 @@ export async function genesisStartRound(
       "genesisStartRound",
       new Args(),
       {
-        coins: parseMas("0.03"),
+        // coins: parseMas("0.03"),
+        coins: parseMas("30"),
       }
     );
 
@@ -125,7 +122,7 @@ export async function genesisLockRound(
     const contract = new SmartContract(provider, CONTRACT_ADDRESS);
 
     const genesisLockOp = await contract.call("genesisLockRound", new Args(), {
-      coins: parseMas("0.03"),
+      coins: parseMas("30"),
     });
 
     console.log("Operation ID:", genesisLockOp.id);
@@ -283,7 +280,7 @@ export async function betBull(
   try {
     const contract = new SmartContract(provider, CONTRACT_ADDRESS);
 
-    const betBullArgs = new Args().addU256(epoch).addU256(betAmount);
+    const betBullArgs = new Args().addU64(epoch).addU64(betAmount);
 
     const coins = betAmount + parseMas("0.01"); // Adding a small buffer for fees
 
@@ -352,7 +349,7 @@ export async function betBear(
   try {
     const contract = new SmartContract(provider, CONTRACT_ADDRESS);
 
-    const betBearArgs = new Args().addU256(epoch).addU256(betAmount);
+    const betBearArgs = new Args().addU64(epoch).addU64(betAmount);
 
     const coins = betAmount + parseMas("0.01"); // Adding a small buffer for fees
 

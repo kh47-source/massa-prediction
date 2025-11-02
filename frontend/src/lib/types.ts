@@ -26,17 +26,17 @@ export class Round implements Serializable<Round> {
 
   serialize(): Uint8Array {
     const args = new Args()
-      .addU256(this.epoch)
+      .addU64(this.epoch)
       .addU64(this.startTimestamp)
       .addU64(this.lockTimestamp)
       .addU64(this.closeTimestamp)
-      .addU256(this.lockPrice)
-      .addU256(this.closePrice)
-      .addU256(this.totalAmount)
-      .addU256(this.bullAmount)
-      .addU256(this.bearAmount)
-      .addU256(this.rewardBaseCalAmount)
-      .addU256(this.rewardAmount)
+      .addU64(this.lockPrice)
+      .addU64(this.closePrice)
+      .addU64(this.totalAmount)
+      .addU64(this.bullAmount)
+      .addU64(this.bearAmount)
+      .addU64(this.rewardBaseCalAmount)
+      .addU64(this.rewardAmount)
       .serialize();
 
     return args;
@@ -45,17 +45,17 @@ export class Round implements Serializable<Round> {
   deserialize(data: Uint8Array, offset: number): DeserializedResult<Round> {
     const args = new Args(data, offset);
 
-    this.epoch = args.nextU256();
+    this.epoch = args.nextU64();
     this.startTimestamp = args.nextU64();
     this.lockTimestamp = args.nextU64();
     this.closeTimestamp = args.nextU64();
-    this.lockPrice = args.nextU256();
-    this.closePrice = args.nextU256();
-    this.totalAmount = args.nextU256();
-    this.bullAmount = args.nextU256();
-    this.bearAmount = args.nextU256();
-    this.rewardBaseCalAmount = args.nextU256();
-    this.rewardAmount = args.nextU256();
+    this.lockPrice = args.nextU64();
+    this.closePrice = args.nextU64();
+    this.totalAmount = args.nextU64();
+    this.bullAmount = args.nextU64();
+    this.bearAmount = args.nextU64();
+    this.rewardBaseCalAmount = args.nextU64();
+    this.rewardAmount = args.nextU64();
 
     return { instance: this, offset: args.getOffset() };
   }
@@ -71,7 +71,7 @@ export class BetInfo implements Serializable<BetInfo> {
   serialize(): Uint8Array {
     const args = new Args()
       .addU8(BigInt(this.position))
-      .addU256(this.amount)
+      .addU64(this.amount)
       .addBool(this.claimed)
       .serialize();
 
@@ -82,7 +82,7 @@ export class BetInfo implements Serializable<BetInfo> {
     const args = new Args(data, offset);
 
     this.position = Number(args.nextU8()) as Position;
-    this.amount = args.nextU256();
+    this.amount = args.nextU64();
     this.claimed = args.nextBool();
 
     return { instance: this, offset: args.getOffset() };
