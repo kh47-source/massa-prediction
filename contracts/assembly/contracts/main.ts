@@ -7,7 +7,14 @@ import {
   Address,
   balance,
   Context,
+  createEvent,
+  deferredCallCancel,
+  deferredCallExists,
+  deferredCallQuote,
+  deferredCallRegister,
+  findCheapestSlot,
   generateEvent,
+  remainingGas,
   Storage,
   transferCoins,
 } from '@massalabs/massa-as-sdk';
@@ -15,22 +22,19 @@ import {
   Args,
   boolToByte,
   bytesToNativeTypeArray,
-  bytesToU256,
-  bytesToU32,
   bytesToU64,
+  bytesToU32,
   byteToBool,
   nativeTypeArrayToBytes,
   stringToBytes,
-  u256ToBytes,
   u32ToBytes,
   u64ToBytes,
+  SafeMath,
 } from '@massalabs/as-types';
-import { _setOwner } from './lib/ownership-internal';
+import { _setOwner, OWNER_KEY } from './lib/ownership-internal';
 import { ReentrancyGuard } from './lib/ReentrancyGuard';
-import { u256 } from 'as-bignum/assembly';
 import { MAX_TREASURY_FEE } from './lib/constants';
 import { onlyOwner } from './lib/ownership';
-import { SafeMath256 } from './lib/safeMath';
 import { Round } from './structs/round';
 import { PersistentMap } from './lib/PersistentMap';
 import { BetInfo } from './structs/betInfo';
@@ -59,8 +63,12 @@ const BUFFER_SECONDS_KEY: StaticArray<u8> = stringToBytes('bs');
 // Genesis lock and start flags
 const IS_GENESIS_LOCKED_KEY: StaticArray<u8> = stringToBytes('igl');
 const IS_GENESIS_STARTED_KEY: StaticArray<u8> = stringToBytes('igs');
+// Deferred call ID for automated round execution
+const CURRENT_CALL_ID_KEY: StaticArray<u8> = stringToBytes('ccid');
+// Automation enabled flag
+const AUTOMATION_ENABLED_KEY: StaticArray<u8> = stringToBytes('ae');
 // Persistent Map for rounds
-const roundsMap = new PersistentMap<u256, Round>('tr');
+const roundsMap = new PersistentMap<u64, Round>('tr');
 // Prefix for UserRounds storage keys
 const USER_ROUNDS_PREFIX = 'ur_';
 // Prefix for BetInfo storage keys
@@ -86,7 +94,7 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
 
   const poolAddress = args.nextString().expect('POOL_ADDRESS_ARG_MISSING');
   const treasuryFee = args.nextU32().expect('TREASURY_FEE_ARG_MISSING');
-  const minBetAmount = args.nextU256().expect('MIN_BET_AMOUNT_ARG_MISSING');
+  const minBetAmount = args.nextU64().expect('MIN_BET_AMOUNT_ARG_MISSING');
   const intervalSeconds = args.nextU64().expect('INTERVAL_SECONDS_ARG_MISSING');
   const bufferSeconds = args.nextU64().expect('BUFFER_SECONDS_ARG_MISSING');
 
@@ -107,21 +115,24 @@ export function constructor(binaryArgs: StaticArray<u8>): void {
   Storage.set(POOL_BIN_STEP_KEY, u32ToBytes(binStep));
 
   Storage.set(TREASURY_FEE_KEY, u32ToBytes(treasuryFee));
-  Storage.set(MIN_BET_AMOUNT_KEY, u256ToBytes(minBetAmount));
+  Storage.set(MIN_BET_AMOUNT_KEY, u64ToBytes(minBetAmount));
   Storage.set(INTERVALS_SECONDS_KEY, u64ToBytes(intervalSeconds));
   Storage.set(BUFFER_SECONDS_KEY, u64ToBytes(bufferSeconds));
 
   // Initialize current epoch to 0
-  Storage.set(CURRENT_EPOCH_KEY, u256ToBytes(u256.Zero));
+  Storage.set(CURRENT_EPOCH_KEY, u64ToBytes(0));
 
   // Initialize treasury amount to 0
-  Storage.set(TREASURY_AMOUNT_KEY, u256ToBytes(u256.Zero));
+  Storage.set(TREASURY_AMOUNT_KEY, u64ToBytes(0));
 
   // Initialize contract as unpaused
   Storage.set(PAUSED_KEY, boolToByte(false));
   // Initialize genesis flags to false
   Storage.set(IS_GENESIS_LOCKED_KEY, boolToByte(false));
   Storage.set(IS_GENESIS_STARTED_KEY, boolToByte(false));
+
+  // Initialize automation as enabled by default
+  Storage.set(AUTOMATION_ENABLED_KEY, boolToByte(true));
 
   // Set the contract owner
   _setOwner(Context.caller().toString());
@@ -140,18 +151,21 @@ export function genesisStartRound(): void {
 
   assert(!isGenesisStarted, 'GENESIS_CAN_BE_STARTED_ONLY_ONCE');
 
-  const currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+  const currentEpoch = bytesToU64(Storage.get(CURRENT_EPOCH_KEY));
 
-  const newCurrentEpoch = SafeMath256.add(currentEpoch, u256.One);
+  const newCurrentEpoch = SafeMath.add(currentEpoch, 1);
 
   // Update current epoch
-  Storage.set(CURRENT_EPOCH_KEY, u256ToBytes(newCurrentEpoch));
+  Storage.set(CURRENT_EPOCH_KEY, u64ToBytes(newCurrentEpoch));
 
   // Start the first round
   _startRound(newCurrentEpoch);
 
   // Update genesis started flag
   Storage.set(IS_GENESIS_STARTED_KEY, boolToByte(true));
+
+  // Schedule the first automated genesisLockRound call
+  _scheduleGenesisLockRound();
 }
 
 /**
@@ -159,7 +173,7 @@ export function genesisStartRound(): void {
  * Also starts the next round.
  */
 export function genesisLockRound(): void {
-  onlyOwner();
+  _onlyOwnerOrCallee();
 
   const isGenesisStarted = byteToBool(Storage.get(IS_GENESIS_STARTED_KEY));
   const isGenesisLocked = byteToBool(Storage.get(IS_GENESIS_LOCKED_KEY));
@@ -167,7 +181,7 @@ export function genesisLockRound(): void {
   assert(isGenesisStarted, 'CAN_ONLY_LOCK_AFTER_GENESIS_STARTED');
   assert(!isGenesisLocked, 'GENESIS_CAN_BE_LOCKED_ONLY_ONCE');
 
-  let currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+  let currentEpoch = bytesToU64(Storage.get(CURRENT_EPOCH_KEY));
 
   // Fetch current Price
   const currentPrice = _getTokenPrice();
@@ -176,23 +190,27 @@ export function genesisLockRound(): void {
   _safeLockRound(currentEpoch, currentPrice);
 
   // Increment epoch for the next round
-  currentEpoch = SafeMath256.add(currentEpoch, u256.One);
+  currentEpoch = SafeMath.add(currentEpoch, 1);
 
-  Storage.set(CURRENT_EPOCH_KEY, u256ToBytes(currentEpoch));
+  Storage.set(CURRENT_EPOCH_KEY, u64ToBytes(currentEpoch));
 
   // Start the next round
   _startRound(currentEpoch);
 
   // Update genesis locked flag
   Storage.set(IS_GENESIS_LOCKED_KEY, boolToByte(true));
+
+  // Schedule the first automated executeRound call
+  _scheduleNextRound();
 }
 
 /**
  * @notice Start the next round n, lock price for round n-1, end round n-2
- * @dev Callable by owner only
+ * @dev Automatically called via deferred calls after genesisLockRound
  */
 export function executeRound(_: StaticArray<u8>): void {
-  onlyOwner();
+  // Only owner or callee (deferred call) can execute this function
+  _onlyOwnerOrCallee();
 
   const isGenesisStarted = byteToBool(Storage.get(IS_GENESIS_STARTED_KEY));
   const isGenesisLocked = byteToBool(Storage.get(IS_GENESIS_LOCKED_KEY));
@@ -205,24 +223,27 @@ export function executeRound(_: StaticArray<u8>): void {
   // Fetch current Price
   const currentPrice = _getTokenPrice();
 
-  let currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+  let currentEpoch = bytesToU64(Storage.get(CURRENT_EPOCH_KEY));
 
   // Lock round n-1 (currentEpoch is referring to round n-1)
   _safeLockRound(currentEpoch, currentPrice);
 
   // End round n-2
-  const prevEpoch = SafeMath256.sub(currentEpoch, u256.One);
+  const prevEpoch = SafeMath.sub(currentEpoch, 1);
   _safeEndRound(prevEpoch, currentPrice);
 
   // Calculate rewards for round n-2
   _calculateRewards(prevEpoch);
 
   // Increment currentEpoch to current round (n)
-  currentEpoch = SafeMath256.add(currentEpoch, u256.One);
-  Storage.set(CURRENT_EPOCH_KEY, u256ToBytes(currentEpoch));
+  currentEpoch = SafeMath.add(currentEpoch, 1);
+  Storage.set(CURRENT_EPOCH_KEY, u64ToBytes(currentEpoch));
 
   // Start round n
   _safeStartRound(currentEpoch);
+
+  // Schedule the next executeRound call automatically
+  _scheduleNextRound();
 }
 
 /**
@@ -232,11 +253,11 @@ export function executeRound(_: StaticArray<u8>): void {
 export function betBear(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
-  const betAmount = args.nextU256().expect('BET_AMOUNT_ARG_MISSING');
+  const epoch = args.nextU64().expect('EPOCH_ARG_MISSING');
+  const betAmount = args.nextU64().expect('BET_AMOUNT_ARG_MISSING');
 
-  const minBetAmount = bytesToU256(Storage.get(MIN_BET_AMOUNT_KEY));
-  const currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+  const minBetAmount = bytesToU64(Storage.get(MIN_BET_AMOUNT_KEY));
+  const currentEpoch = bytesToU64(Storage.get(CURRENT_EPOCH_KEY));
 
   assert(epoch == currentEpoch, 'BET_IS_TOO_EARLY_OR_LATE');
   assert(_bettable(epoch), 'ROUND_NOT_BETTABLE');
@@ -249,7 +270,7 @@ export function betBear(binaryArgs: StaticArray<u8>): void {
   const transferredCoins = Context.transferredCoins();
 
   assert(
-    u256.fromU64(transferredCoins) >= betAmount,
+    transferredCoins >= betAmount,
     'TRANSFERRED_COINS_MUST_LARGER_THAN_BET_AMOUNT',
   );
 
@@ -263,8 +284,8 @@ export function betBear(binaryArgs: StaticArray<u8>): void {
   // Update round data
   const round = roundsMap.getSome(epoch);
 
-  round.totalAmount = SafeMath256.add(round.totalAmount, betAmount);
-  round.bearAmount = SafeMath256.add(round.bearAmount, betAmount);
+  round.totalAmount = SafeMath.add(round.totalAmount, betAmount);
+  round.bearAmount = SafeMath.add(round.bearAmount, betAmount);
 
   // Store the updated round back in the map
   roundsMap.set(epoch, round);
@@ -294,11 +315,11 @@ export function betBear(binaryArgs: StaticArray<u8>): void {
 export function betBull(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
-  const betAmount = args.nextU256().expect('BET_AMOUNT_ARG_MISSING');
+  const epoch = args.nextU64().expect('EPOCH_ARG_MISSING');
+  const betAmount = args.nextU64().expect('BET_AMOUNT_ARG_MISSING');
 
-  const minBetAmount = bytesToU256(Storage.get(MIN_BET_AMOUNT_KEY));
-  const currentEpoch = bytesToU256(Storage.get(CURRENT_EPOCH_KEY));
+  const minBetAmount = bytesToU64(Storage.get(MIN_BET_AMOUNT_KEY));
+  const currentEpoch = bytesToU64(Storage.get(CURRENT_EPOCH_KEY));
 
   assert(epoch == currentEpoch, 'BET_IS_TOO_EARLY_OR_LATE');
   assert(_bettable(epoch), 'ROUND_NOT_BETTABLE');
@@ -311,7 +332,7 @@ export function betBull(binaryArgs: StaticArray<u8>): void {
   const transferredCoins = Context.transferredCoins();
 
   assert(
-    u256.fromU64(transferredCoins) >= betAmount,
+    transferredCoins >= betAmount,
     'TRANSFERRED_COINS_MUST_LARGER_THAN_BET_AMOUNT',
   );
 
@@ -325,8 +346,8 @@ export function betBull(binaryArgs: StaticArray<u8>): void {
   // Update round
   const round = roundsMap.getSome(epoch);
 
-  round.totalAmount = SafeMath256.add(round.totalAmount, betAmount);
-  round.bullAmount = SafeMath256.add(round.bullAmount, betAmount);
+  round.totalAmount = SafeMath.add(round.totalAmount, betAmount);
+  round.bullAmount = SafeMath.add(round.bullAmount, betAmount);
 
   // Store the updated round back in the map
   roundsMap.set(epoch, round);
@@ -356,9 +377,9 @@ export function betBull(binaryArgs: StaticArray<u8>): void {
 export function claim(binaryArgs: StaticArray<u8>): void {
   const args = new Args(binaryArgs);
 
-  const epochs = args.nextFixedSizeArray<u256>().expect('EPOCHS_ARG_MISSING');
+  const epochs = args.nextFixedSizeArray<u64>().expect('EPOCHS_ARG_MISSING');
 
-  let reward = u256.Zero; // Initializes reward
+  let reward: u64 = 0; // Initializes reward
 
   const userAddress = Context.caller().toString();
 
@@ -382,8 +403,8 @@ export function claim(binaryArgs: StaticArray<u8>): void {
       .expect('INVALID_BET_INFO');
 
     // addedReward = betInfo.amount * round.rewardAmount / round.rewardBaseCalAmount;
-    let addedReward = SafeMath256.div(
-      SafeMath256.mul(betInfo.amount, round.rewardAmount),
+    let addedReward: u64 = SafeMath.div(
+      SafeMath.mul(betInfo.amount, round.rewardAmount),
       round.rewardBaseCalAmount,
     );
 
@@ -392,7 +413,7 @@ export function claim(binaryArgs: StaticArray<u8>): void {
     Storage.set(betInfoKey, betInfo.serialize());
 
     // Update total reward
-    reward = SafeMath256.add(reward, addedReward);
+    reward = SafeMath.add(reward, addedReward);
 
     // Emit Claim Event
     generateEvent(
@@ -400,17 +421,17 @@ export function claim(binaryArgs: StaticArray<u8>): void {
     );
   }
 
-  if (reward > u256.Zero) {
+  if (reward > 0) {
     // Check the contract has enough balance to pay the reward
     const contractBalance = balance();
 
     assert(
-      contractBalance >= reward.toU64(),
+      contractBalance >= reward,
       'CONTRACT_HAS_NOT_ENOUGH_BALANCE_TO_CLAIM_REWARD',
     );
 
     // Transfer the reward to the user
-    transferCoins(new Address(userAddress), reward.toU64());
+    transferCoins(new Address(userAddress), reward);
   }
 }
 
@@ -423,7 +444,7 @@ export function claim(binaryArgs: StaticArray<u8>): void {
 export function claimable(binaryArgs: StaticArray<u8>): StaticArray<u8> {
   const args = new Args(binaryArgs);
 
-  const epoch = args.nextU256().expect('EPOCH_ARG_MISSING');
+  const epoch = args.nextU64().expect('EPOCH_ARG_MISSING');
   const userAddress = args.nextString().expect('USER_ADDRESS_ARG_MISSING');
 
   const isClaimable = _claimable(epoch, userAddress);
@@ -433,7 +454,7 @@ export function claimable(binaryArgs: StaticArray<u8>): StaticArray<u8> {
 
 //////////////////////////////////////////// INTERNAL FUNCTIONS////////////////////////////////////////////
 
-function _startRound(epoch: u256): void {
+function _startRound(epoch: u64): void {
   const currentTimestamp = Context.timestamp();
 
   const intervalSeconds = bytesToU64(Storage.get(INTERVALS_SECONDS_KEY));
@@ -445,7 +466,7 @@ function _startRound(epoch: u256): void {
   const roundCloseTimestamp = roundLockTimestamp + intervalSeconds;
 
   // Construct the round object
-  const round = new Round(
+  let round = new Round(
     epoch,
     roundStartTimestamp,
     roundLockTimestamp,
@@ -459,14 +480,14 @@ function _startRound(epoch: u256): void {
   generateEvent(`StartRound: epoch=${epoch.toString()}`);
 }
 
-function _safeStartRound(epoch: u256): void {
+function _safeStartRound(epoch: u64): void {
   // Can only be called when teh genesis is started
   const isGenesisStarted = byteToBool(Storage.get(IS_GENESIS_STARTED_KEY));
 
   assert(isGenesisStarted, 'GENESIS_NOT_STARTED_YET');
 
   // Get previous previous epoch (n-2)
-  const prevPrevEpoch = SafeMath256.sub(epoch, u256.fromU32(2));
+  const prevPrevEpoch = SafeMath.sub(epoch, 2);
 
   // Get previous previous round (n-2)
   const prevPrevRound = roundsMap.getSome(prevPrevEpoch);
@@ -487,7 +508,7 @@ function _safeStartRound(epoch: u256): void {
   _startRound(epoch);
 }
 
-function _safeLockRound(epoch: u256, price: u256): void {
+function _safeLockRound(epoch: u64, price: u64): void {
   // Get the round of the given epoch
   const round = roundsMap.getSome(epoch);
 
@@ -502,7 +523,12 @@ function _safeLockRound(epoch: u256, price: u256): void {
   // Ensure current time is after or equal to lock timestamp
   assert(
     currentTimestamp >= round.lockTimestamp,
-    'CAN_ONLY_LOCK_ROUND_AFTER_LOCK_TIMESTAMP',
+    'CAN_ONLY_LOCK_ROUND_AFTER_LOCK_TIMESTAMP_' +
+      epoch.toString() +
+      '_' +
+      round.lockTimestamp.toString() +
+      '<' +
+      currentTimestamp.toString(),
   );
 
   // Get the Buffer Seconds
@@ -535,7 +561,7 @@ function _safeLockRound(epoch: u256, price: u256): void {
  * @param epoch: epoch of the round
  * @param price: price of the round
  */
-function _safeEndRound(epoch: u256, price: u256): void {
+function _safeEndRound(epoch: u64, price: u64): void {
   // Get the round of the given epoch
   const round = roundsMap.getSome(epoch);
 
@@ -574,19 +600,19 @@ function _safeEndRound(epoch: u256, price: u256): void {
  * @notice Calculate rewards for round
  * @param epoch: epoch
  */
-function _calculateRewards(epoch: u256): void {
+function _calculateRewards(epoch: u64): void {
   // Get the round of the given epoch
   const round = roundsMap.getSome(epoch);
 
   // Ensure rewards have not been calculated yet
   assert(
-    round.rewardBaseCalAmount == u256.Zero && round.rewardAmount == u256.Zero,
+    round.rewardBaseCalAmount == 0 && round.rewardAmount == 0,
     'REWARDS_ALREADY_CALCULATED',
   );
 
-  let rewardBaseCalAmount: u256;
-  let treasuryAmt: u256;
-  let rewardAmount: u256;
+  let rewardBaseCalAmount: u64;
+  let treasuryAmt: u64;
+  let rewardAmount: u64;
 
   const treasuryFee = bytesToU32(Storage.get(TREASURY_FEE_KEY));
 
@@ -595,31 +621,31 @@ function _calculateRewards(epoch: u256): void {
     rewardBaseCalAmount = round.bullAmount;
 
     // treasuryAmt = (round.totalAmount * treasuryFee) / 10000;
-    treasuryAmt = SafeMath256.div(
-      SafeMath256.mul(round.totalAmount, u256.fromU32(treasuryFee)),
-      u256.fromU32(10000),
+    treasuryAmt = SafeMath.div(
+      SafeMath.mul(round.totalAmount, treasuryFee),
+      10000,
     );
 
     // rewardAmount = round.totalAmount - treasuryAmt;
-    rewardAmount = SafeMath256.sub(round.totalAmount, treasuryAmt);
+    rewardAmount = SafeMath.sub(round.totalAmount, treasuryAmt);
   }
   // Handle Bear wins
   else if (round.closePrice < round.lockPrice) {
     rewardBaseCalAmount = round.bearAmount;
 
     // treasuryAmt = (round.totalAmount * treasuryFee) / 10000;
-    treasuryAmt = SafeMath256.div(
-      SafeMath256.mul(round.totalAmount, u256.fromU32(treasuryFee)),
-      u256.fromU32(10000),
+    treasuryAmt = SafeMath.div(
+      SafeMath.mul(round.totalAmount, treasuryFee),
+      10000,
     );
 
     // rewardAmount = round.totalAmount - treasuryAmt;
-    rewardAmount = SafeMath256.sub(round.totalAmount, treasuryAmt);
+    rewardAmount = SafeMath.sub(round.totalAmount, treasuryAmt);
   }
   // Handle House wins (lockPrice == closePrice)
   else {
-    rewardBaseCalAmount = u256.Zero;
-    rewardAmount = u256.Zero;
+    rewardBaseCalAmount = 0;
+    rewardAmount = 0;
     treasuryAmt = round.totalAmount;
   }
 
@@ -630,11 +656,11 @@ function _calculateRewards(epoch: u256): void {
   // Store the updated round back in the map
   roundsMap.set(epoch, round);
 
-  const oldTreasuryAmount = bytesToU256(Storage.get(TREASURY_AMOUNT_KEY));
+  const oldTreasuryAmount = bytesToU64(Storage.get(TREASURY_AMOUNT_KEY));
 
   // Update treasury amount
-  const newTreasuryAmount = SafeMath256.add(oldTreasuryAmount, treasuryAmt);
-  Storage.set(TREASURY_AMOUNT_KEY, u256ToBytes(newTreasuryAmount));
+  const newTreasuryAmount = SafeMath.add(oldTreasuryAmount, treasuryAmt);
+  Storage.set(TREASURY_AMOUNT_KEY, u64ToBytes(newTreasuryAmount));
 
   // Emit RewardsCalculated Event
   generateEvent(
@@ -649,7 +675,7 @@ function _calculateRewards(epoch: u256): void {
  * @param epoch  - The epoch of the round to check
  * @returns bool - True if the round is bettable, false otherwise
  */
-function _bettable(epoch: u256): bool {
+function _bettable(epoch: u64): bool {
   // Get the round of the given epoch
   const round = roundsMap.getSome(epoch);
 
@@ -670,7 +696,7 @@ function _bettable(epoch: u256): bool {
  * @param userAddress: user address
  * @return bool - true if user can claim, false otherwise
  */
-function _claimable(epoch: u256, userAddress: string): bool {
+function _claimable(epoch: u64, userAddress: string): bool {
   const betInfoKey = _betUserInfoKey(epoch, userAddress);
 
   if (!Storage.has(betInfoKey)) {
@@ -689,7 +715,7 @@ function _claimable(epoch: u256, userAddress: string): bool {
   }
 
   const isClaimable =
-    betInfo.amount != u256.Zero &&
+    betInfo.amount != 0 &&
     !betInfo.claimed &&
     ((round.closePrice > round.lockPrice &&
       betInfo.position == Position.Bull) ||
@@ -701,9 +727,9 @@ function _claimable(epoch: u256, userAddress: string): bool {
 
 /**
  * @notice Fetches the token price from EagleFi DEX
- * @returns u256 - The current token price
+ * @returns u64 - The current token price
  */
-function _getTokenPrice(): u256 {
+function _getTokenPrice(): u64 {
   const poolAddress = Storage.get(POOL_ADDRESS_KEY);
 
   const poolContract = new IDusaPair(new Address(poolAddress));
@@ -713,10 +739,10 @@ function _getTokenPrice(): u256 {
   return BinHelper.getPriceFromId(
     pairInfo.activeId as u64,
     bytesToU32(Storage.get(POOL_BIN_STEP_KEY)) as u64,
-  );
+  ).toU64();
 }
 
-function _betUserInfoKey(epoch: u256, userAddress: string): StaticArray<u8> {
+function _betUserInfoKey(epoch: u64, userAddress: string): StaticArray<u8> {
   return stringToBytes(
     BET_USER_INFO_PREFIX + epoch.toString() + '_' + userAddress,
   );
@@ -726,20 +752,232 @@ function _userRoundsKey(userAddress: string): StaticArray<u8> {
   return stringToBytes(USER_ROUNDS_PREFIX + userAddress);
 }
 
-function _getUserRounds(userAddress: string): u256[] {
+function _getUserRounds(userAddress: string): u64[] {
   const userRoundsKey = _userRoundsKey(userAddress);
 
   if (!Storage.has(userRoundsKey)) {
-    return new Array<u256>();
+    return new Array<u64>();
   }
 
   const data = Storage.get(userRoundsKey);
 
-  return bytesToNativeTypeArray<u256>(data);
+  return bytesToNativeTypeArray<u64>(data);
 }
 
-function _updateUserRounds(userAddress: string, rounds: u256[]): void {
+function _updateUserRounds(userAddress: string, rounds: u64[]): void {
   const userRoundsKey = _userRoundsKey(userAddress);
 
-  Storage.set(userRoundsKey, nativeTypeArrayToBytes<u256>(rounds));
+  Storage.set(userRoundsKey, nativeTypeArrayToBytes<u64>(rounds));
+}
+
+/**
+ * @notice Ensures that the caller is either the contract owner or the contract itself (deferred call)
+ * @dev Used to restrict access to certain functions that can be called by deferred calls
+ */
+function _onlyOwnerOrCallee(): void {
+  const callee = Context.callee().toString();
+  const Caller = Context.caller().toString();
+
+  // Allow if called by the contract itself (Deferred call)
+  if (callee === Caller) {
+    return;
+  } else {
+    onlyOwner();
+  }
+}
+
+/**
+ * @notice Schedules the next executeRound call using Massa deferred calls
+ * @dev This function is called after genesisLockRound and after each executeRound
+ */
+function _scheduleNextRound(): void {
+  generateEvent(
+    createEvent('SCHEDULING_NEXT_ROUND_REMMAINING_GAS', [
+      remainingGas().toString(),
+    ]),
+  );
+
+  // Check if automation is enabled
+  const automationEnabled = byteToBool(Storage.get(AUTOMATION_ENABLED_KEY));
+
+  if (!automationEnabled) {
+    return;
+  }
+
+  const intervalSeconds = bytesToU64(Storage.get(INTERVALS_SECONDS_KEY)) / 1000; // Convert ms to seconds
+
+  // Create empty arguments for executeRound (it takes empty args)
+  const executeRoundArgs = new Args().serialize();
+
+  const paramsSize = executeRoundArgs.length;
+  // Set max gas for executeRound execution
+  const maxGas = 900_000_000; // 900M gas should be enough for executeRound
+
+  // Calculate the target period: current period + (intervalSeconds / 16)
+  // Massa has ~16 second periods, so we convert seconds to periods
+  const currentPeriod = Context.currentPeriod();
+  const periodsToWait = intervalSeconds / 16; // Convert seconds to periods (16s per period)
+  const bookingPeriod = currentPeriod + periodsToWait + 2; // +1 to avoid rounding issues of the division
+
+  // Find the cheapest slot for the deferred call
+  const slot = findCheapestSlot(
+    bookingPeriod,
+    bookingPeriod + 5, // Allow a window of 5 periods
+    maxGas,
+    paramsSize,
+  );
+
+  // Get the cost quote for the deferred call
+  const cost = deferredCallQuote(slot, maxGas, paramsSize);
+
+  // Register the deferred call to executeRound
+  const callId = deferredCallRegister(
+    Context.callee().toString(),
+    'executeRound',
+    slot,
+    maxGas,
+    executeRoundArgs,
+    0, // No coins to transfer
+  );
+
+  // Save the current call ID to storage for potential cancellation
+  // Store the callId as a string using Args serialization
+  const callIdArgs = new Args().add(callId).serialize();
+  Storage.set(CURRENT_CALL_ID_KEY, callIdArgs);
+
+  // Emit an event for the scheduled round
+  generateEvent(
+    createEvent('ROUND_SCHEDULED', [
+      callId,
+      bookingPeriod.toString(),
+      currentPeriod.toString(),
+      cost.toString(),
+    ]),
+  );
+}
+
+/**
+ * @notice Schedules the genesisLockRound call using Massa deferred calls
+ * @dev This an internal function called after genesisStartRound
+ *
+ */
+function _scheduleGenesisLockRound(): void {
+  const intervalSeconds = bytesToU64(Storage.get(INTERVALS_SECONDS_KEY)) / 1000; // Convert ms to seconds
+
+  // Create empty arguments for genesisLockRound (it takes empty args)
+  const genesisLockRoundArgs = new Args().serialize();
+
+  const paramsSize = genesisLockRoundArgs.length;
+
+  // Set max gas for genesisLockRound execution
+  const maxGas = 900_000_000; // 1B gas should be enough for genesisLockRound
+
+  // Calculate the target period: current period + (intervalSeconds / 16)
+  // Massa has ~16 second periods, so we convert seconds to periods
+  const currentPeriod = Context.currentPeriod();
+  const periodsToWait = intervalSeconds / 16; // Convert seconds to periods (16s per period)
+  const bookingPeriod = currentPeriod + periodsToWait + 2; // +1 to avoid rounding issues of the division
+
+  // Find the cheapest slot for the deferred call
+  const slot = findCheapestSlot(
+    bookingPeriod,
+    bookingPeriod + 5, // Allow a window of 5 periods
+    maxGas,
+    paramsSize,
+  );
+
+  // Get the cost quote for the deferred call
+  const cost = deferredCallQuote(slot, maxGas, paramsSize);
+
+  // Register the deferred call to genesisLockRound
+  const callId = deferredCallRegister(
+    Context.callee().toString(),
+    'genesisLockRound',
+    slot,
+    maxGas,
+    genesisLockRoundArgs,
+    0, // No coins to transfer
+  );
+
+  // Save the current call ID to storage for potential cancellation
+  // Store the callId as a string using Args serialization
+  const callIdArgs = new Args().add(callId).serialize();
+  Storage.set(CURRENT_CALL_ID_KEY, callIdArgs);
+
+  // Emit an event for the scheduled genesis lock round
+  generateEvent(
+    createEvent('GENESIS_LOCK_ROUND_SCHEDULED', [
+      callId,
+      bookingPeriod.toString(),
+      currentPeriod.toString(),
+      cost.toString(),
+    ]),
+  );
+}
+
+/**
+ * @notice Pauses the automated round execution
+ * @dev Only callable by the owner. Cancels the scheduled deferred call if it exists
+ */
+export function pauseAutomation(): void {
+  onlyOwner();
+
+  const automationEnabled = byteToBool(Storage.get(AUTOMATION_ENABLED_KEY));
+
+  assert(automationEnabled, 'AUTOMATION_ALREADY_PAUSED');
+
+  // Cancel the scheduled deferred call if it exists
+  if (Storage.has(CURRENT_CALL_ID_KEY)) {
+    const currentCallIdBytes = Storage.get(CURRENT_CALL_ID_KEY);
+    // Convert bytes back to string using Args
+    const currentCallId = new Args(currentCallIdBytes)
+      .nextString()
+      .expect('CALL_ID_INVALID');
+
+    if (deferredCallExists(currentCallId)) {
+      deferredCallCancel(currentCallId);
+    }
+
+    // Clean up the call ID from storage
+    Storage.del(CURRENT_CALL_ID_KEY);
+  }
+
+  // Update automation state to disabled
+  Storage.set(AUTOMATION_ENABLED_KEY, boolToByte(false));
+
+  // Emit an event indicating automation has been paused
+  generateEvent(
+    createEvent('AUTOMATION_PAUSED', [Context.caller().toString()]),
+  );
+}
+
+/**
+ * @notice Resumes the automated round execution
+ * @dev Only callable by the owner. Schedules the next executeRound call
+ */
+export function resumeAutomation(): void {
+  onlyOwner();
+
+  const automationEnabled = byteToBool(Storage.get(AUTOMATION_ENABLED_KEY));
+
+  assert(!automationEnabled, 'AUTOMATION_ALREADY_ENABLED');
+
+  const isGenesisStarted = byteToBool(Storage.get(IS_GENESIS_STARTED_KEY));
+  const isGenesisLocked = byteToBool(Storage.get(IS_GENESIS_LOCKED_KEY));
+
+  assert(
+    isGenesisStarted && isGenesisLocked,
+    'CAN_ONLY_RESUME_AFTER_GENESIS_LOCK',
+  );
+
+  // Update automation state to enabled
+  Storage.set(AUTOMATION_ENABLED_KEY, boolToByte(true));
+
+  // Schedule the next round
+  _scheduleNextRound();
+
+  // Emit an event indicating automation has been resumed
+  generateEvent(
+    createEvent('AUTOMATION_RESUMED', [Context.caller().toString()]),
+  );
 }
