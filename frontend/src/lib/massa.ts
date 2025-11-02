@@ -60,7 +60,7 @@ export async function genesisStartRound(
       new Args(),
       {
         // coins: parseMas("0.03"),
-        coins: parseMas("50"),
+        coins: parseMas("500"),
       }
     );
 
@@ -180,7 +180,7 @@ export async function executeRound(
     const contract = new SmartContract(provider, CONTRACT_ADDRESS);
 
     const executeOp = await contract.call("executeRound", new Args(), {
-      coins: parseMas("0.03"),
+      coins: parseMas("100"),
     });
 
     console.log("Operation ID:", executeOp.id);
