@@ -2,8 +2,68 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light dark;
+@layer base {
+  :root {
+    /* Dark purple theme matching the screenshot */
+    --background: 258 44% 25%;
+    --background-light: 258 44% 30%;
+    --surface: 258 30% 20%;
+    --foreground: 0 0% 100%;
+
+    --card: 258 35% 22%;
+    --card-hover: 258 35% 25%;
+    --card-foreground: 0 0% 100%;
+
+    --muted: 258 20% 30%;
+    --muted-foreground: 258 10% 70%;
+
+    /* Accent colors */
+    --primary: 258 70% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Status colors */
+    --success: 168 76% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --danger: 320 85% 55%;
+    --danger-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* UI elements */
+    --border: 258 30% 35%;
+    --input: 258 30% 25%;
+    --ring: 258 70% 60%;
+
+    --radius: 1rem;
+
+    /* Prediction markets specific - vibrant colors */
+    --up-bg: 168 76% 42%;
+    --up-border: 168 76% 38%;
+    --down-bg: 320 85% 55%;
+    --down-border: 320 85% 50%;
+
+    /* Purple theme colors */
+    --purple-light: 258 70% 70%;
+    --purple-dark: 258 70% 40%;
+  }
+
+  body {
+    background: #524785;
+    min-height: 100vh;
+    color: hsl(var(--foreground));
+    font-family: system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "kern" 1, "liga" 1;
+  }
+
+  /* Clean number display */
+  .font-mono-numbers {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
 }
 
 /* Custom scrollbar styling */
@@ -31,72 +91,225 @@
   background: rgba(147, 51, 234, 0.5);
 }
 
-/* Neo‑Brutalist helpers */
-.bento-bg {
-  box-shadow: 0 0 0 3px #0e0e10 inset;
-}
+/* Dark purple card and button styles matching screenshot */
 .brut-card {
-  @apply border-3 border-ink-950 rounded-3xl shadow-brut;
-}
-.brut-btn {
-  @apply border-3 border-ink-950 px-5 py-3 rounded-2xl font-bold transition-transform active:translate-y-1;
-}
-.brut-link {
-  @apply underline decoration-4 decoration-ink-950;
+  background: #353050;
+  border: 2px solid hsl(var(--purple-light) / 0.2);
+  border-radius: 1rem;
+  transition: all 150ms ease-in-out;
 }
 
-/* react ui kit connect wallet modal */
+.brut-card:hover {
+  border-color: hsl(var(--purple-light) / 0.4);
+}
+
+/* Hover background for buttons */
+.hover\:bg-muted:hover {
+  background-color: hsl(var(--muted));
+}
+
+/* Border colors for navigation buttons */
+.border-purple-light\/30 {
+  border-color: hsl(var(--purple-light) / 0.3);
+}
+
+.hover\:border-purple-light\/60:hover {
+  border-color: hsl(var(--purple-light) / 0.6);
+}
+
+/* Background colors */
+.bg-card {
+  background-color: #353050;
+}
+
+/* Focus state for inputs */
+.focus\:border-purple-light:focus {
+  border-color: hsl(var(--purple-light));
+}
+
+/* Massa Wallet Modal Styling */
+.massa-wallet-wrapper {
+  /* Override the default light theme styles */
+}
+
+/* Style all buttons in the wallet wrapper */
+.massa-wallet-wrapper button {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 2px solid hsl(var(--purple-light) / 0.3) !important;
+  border-radius: 0.75rem !important;
+  padding: 1rem !important;
+  transition: all 150ms ease-in-out !important;
+}
+
+.massa-wallet-wrapper button:hover {
+  border-color: hsl(var(--purple-light) / 0.6) !important;
+  background-color: hsl(var(--muted)) !important;
+}
+
+/* Style the select dropdown */
+.massa-wallet-wrapper select {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 2px solid hsl(var(--purple-light) / 0.3) !important;
+  border-radius: 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 150ms ease-in-out !important;
+  cursor: pointer !important;
+}
+
+.massa-wallet-wrapper select:hover {
+  border-color: hsl(var(--purple-light) / 0.6) !important;
+}
+
+.massa-wallet-wrapper select:focus {
+  outline: none !important;
+  border-color: hsl(var(--purple-light)) !important;
+}
+
+/* Style select options */
+.massa-wallet-wrapper select option {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Override theme-light wrapper */
+.massa-wallet-wrapper .theme-light {
+  background: transparent !important;
+}
+
+/* Style all text elements */
+.massa-wallet-wrapper * {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Style any input fields */
+.massa-wallet-wrapper input {
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 2px solid hsl(var(--purple-light) / 0.3) !important;
+  border-radius: 0.75rem !important;
+  padding: 0.75rem 1rem !important;
+}
+
+.massa-wallet-wrapper input:focus {
+  outline: none !important;
+  border-color: hsl(var(--purple-light)) !important;
+}
+
+/* Style any divs with background */
+.massa-wallet-wrapper div[class*="bg-"] {
+  background-color: transparent !important;
+}
+
+.brut-btn {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 200ms ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+.brut-btn-sm {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 200ms ease-in-out;
+  border: none;
+  cursor: pointer;
+}
+
+/* Prediction market button colors */
+.bg-up-bg {
+  background-color: hsl(var(--up-bg));
+}
+
+.bg-up-bg:hover,
+.hover\:bg-up-border:hover {
+  background-color: hsl(var(--up-border));
+}
+
+.bg-down-bg {
+  background-color: hsl(var(--down-bg));
+}
+
+.bg-down-bg:hover,
+.hover\:bg-down-border:hover {
+  background-color: hsl(var(--down-border));
+}
+
+/* react ui kit connect wallet modal - Dark Purple Theme */
 #options {
-  border: 3px solid #0e0e10;
-  border-radius: 2rem;
-  padding-top: 0;
-  padding-bottom: 0;
-  box-shadow: 8px 8px 0 0 rgba(14, 14, 16, 0.25);
+  border: 2px solid hsl(var(--purple-light) / 0.3) !important;
+  border-radius: 0.75rem !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  background-color: hsl(var(--card)) !important;
+  overflow: hidden !important;
+}
+
+#options > ul {
+  background-color: hsl(var(--card)) !important;
+  border-radius: 0.75rem !important;
 }
 
 #options > ul > li {
-  border-bottom: 3px solid #0e0e10;
-  border-radius: 0px;
-  transition: background-color 0.2s ease;
+  border-bottom: 1px solid hsl(var(--purple-light) / 0.2) !important;
+  border-radius: 0px !important;
+  transition: all 0.15s ease !important;
+  background-color: hsl(var(--card)) !important;
 }
 
 #options > ul > li:first-child {
-  border-top-left-radius: 2rem;
-  border-top-right-radius: 2rem;
+  border-top-left-radius: 0.75rem !important;
+  border-top-right-radius: 0.75rem !important;
 }
 
 #options > ul > li:last-child {
-  border-bottom: none;
-  border-bottom-left-radius: 2rem;
-  border-bottom-right-radius: 2rem;
+  border-bottom: none !important;
+  border-bottom-left-radius: 0.75rem !important;
+  border-bottom-right-radius: 0.75rem !important;
 }
 
 #options > ul > li:hover {
-  background-color: #fd5a46 !important;
+  background-color: hsl(var(--muted)) !important;
 }
 
 #options > ul > li > div {
-  border-radius: 0px;
-  padding: 1rem;
-  font-weight: 600;
-  color: #0e0e10;
+  border-radius: 0px !important;
+  padding: 1rem !important;
+  font-weight: 600 !important;
+  color: hsl(var(--foreground)) !important;
+  background-color: transparent !important;
 }
 
 #dropdownUiKitButton {
-  border: 3px solid #0e0e10;
-  border-radius: 2rem;
-  box-shadow: 8px 8px 0 0 rgba(14, 14, 16, 0.25);
-  background-color: white;
-  color: #0e0e10;
-  font-weight: 600;
-  padding: 1rem 1.5rem;
-  transition: all 0.2s ease;
+  border: 2px solid hsl(var(--purple-light) / 0.3) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: none !important;
+  background-color: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600 !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 0.15s ease !important;
 }
 
 #dropdownUiKitButton:hover {
-  background-color: #fd5a46;
-  transform: translateY(2px);
-  box-shadow: 6px 6px 0 0 rgba(14, 14, 16, 0.25);
+  background-color: hsl(var(--muted)) !important;
+  border-color: hsl(var(--purple-light) / 0.6) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Force background on all wallet option elements */
+#options * {
+  background-color: inherit !important;
+}
+
+#options > ul > li * {
+  color: hsl(var(--foreground)) !important;
 }
 
 /* react tostify customization  */
